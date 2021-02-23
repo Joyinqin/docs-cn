@@ -183,7 +183,7 @@ Engine 隔离的优先级高于 CBO 与 Hint，Hint 优先级高于代价估算�
 
 ## 使用 TiSpark 读取 TiFlash
 
-TiSpark 目前提供类似 TiDB 中 engine 隔离的方式读取 TiFlash，方式是通过配置参数 `spark.tispark.use.tiflash` 为 `true`（或 `false`）。
+TiSpark 目前提供类似 TiDB 中 engine 隔离的方式读取 TiFlash，方式是通过配置参数 `spark.tispark.isolation_read_engines`。参数值默认为 `tikv,tiflash`，表示根据 CBO 自动选择从 TiFlash 或从 TiKV 读取数据。如果将该参数值设置成 `tiflash`，表示强制从 TiFlash 读取数据。
 
 > **注意：**
 >
@@ -194,14 +194,14 @@ TiSpark 目前提供类似 TiDB 中 engine 隔离的方式读取 TiFlash，方�
 1. 在 `spark-defaults.conf` 文件中添加：
 
     ```
-    spark.tispark.use.tiflash true
+    spark.tispark.isolation_read_engines tiflash
     ```
 
-2. 在启动 Spark shell 或 Thrift server 时，启动命令中添加 `--conf spark.tispark.use.tiflash=true`
+2. 在启动 Spark shell 或 Thrift server 时，启动命令中添加 `--conf spark.tispark.isolation_read_engines=tiflash`
 
-3. Spark shell 中实时设置：`spark.conf.set("spark.tispark.use.tiflash", true)`
+3. Spark shell 中实时设置：`spark.conf.set("spark.tispark.isolation_read_engines", "tiflash")`
 
-4. Thrift server 通过 beeline 连接后实时设置：`set spark.tispark.use.tiflash=true`
+4. Thrift server 通过 beeline 连接后实时设置：`set spark.tispark.isolation_read_engines=tiflash`
 
 ## TiFlash 支持的计算下推
 
@@ -211,7 +211,7 @@ TiFlash 主要支持谓词、聚合下推计算，下推的计算可以帮助 Ti
 
 目前 TiFlash 不支持下推的情况包括：
 
-- 所有包含 Duration 和 JSON 的表达式均不能下推
+- 所有包含 Time 类型和 JSON 类型的表达式均不能下推
 - 在聚合函数或者 WHERE 条件中包含了不在[该文件](https://github.com/pingcap/tidb/blob/v3.1.0/expression/expression.go#L558)列表中的表达式，聚合或者相关的谓词过滤均不能下推
 
 如查询遇到不支持的下推计算，则需要依赖 TiDB 完成剩余计算，可能会很大程度影响 TiFlash 加速效果。对于暂不支持的表达式，将会在后续陆续加入支持，也可以联系官方沟通。

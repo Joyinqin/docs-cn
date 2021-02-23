@@ -26,7 +26,7 @@ TiDB 支持 MySQL 传输协议及其绝大多数的语法。这意味着您现�
 * 事件
 * 自定义函数
 * 外键约束 [#18209](https://github.com/pingcap/tidb/issues/18209)
-* 临时表
+* 临时表 [#1248](https://github.com/pingcap/tidb/issues/1248)
 * 全文/空间函数与索引 [#1793](https://github.com/pingcap/tidb/issues/1793)
 * 非 `ascii`/`latin1`/`binary`/`utf8`/`utf8mb4` 的字符集
 * `BINARY` 之外的排序规则
@@ -34,15 +34,14 @@ TiDB 支持 MySQL 传输协议及其绝大多数的语法。这意味着您现�
 * SYS schema
 * MySQL 追踪优化器
 * XML 函数
-* X Protocol
-* Savepoints
-* 列级权限
+* X-Protocol [#1109](https://github.com/pingcap/tidb/issues/1109)
+* Savepoints [#6840](https://github.com/pingcap/tidb/issues/6840)
+* 列级权限 [#9766](https://github.com/pingcap/tidb/issues/9766)
 * `XA` 语法（TiDB 内部使用两阶段提交，但并没有通过 SQL 接口公开）
-* `CREATE TABLE tblName AS SELECT stmt` 语法
-* `CREATE TEMPORARY TABLE` 语法
-* `CHECK TABLE` 语法
-* `CHECKSUM TABLE` 语法
-* `SELECT INTO FILE` 语法
+* `CREATE TABLE tblName AS SELECT stmt` 语法 [#4754](https://github.com/pingcap/tidb/issues/4754)
+* `CHECK TABLE` 语法 [#4673](https://github.com/pingcap/tidb/issues/4673)
+* `CHECKSUM TABLE` 语法 [#1895](https://github.com/pingcap/tidb/issues/1895)
+* `GET_LOCK` 和 `RELEASE_LOCK` 函数 [#14994](https://github.com/pingcap/tidb/issues/14994)
 
 ## 与 MySQL 有差异的特性
 
@@ -153,6 +152,7 @@ TiDB 支持常用的 MySQL 内建函数，但是不是所有的函数都已经�
 
 - 不支持 `SELECT ... INTO @变量` 语法。
 - 不支持 `SELECT ... GROUP BY ... WITH ROLLUP` 语法。
+- TiDB 中的 `SELECT .. GROUP BY expr` 的返回结果与 MySQL 5.7 并不一致。MySQL 5.7 的结果等价于 `GROUP BY expr ORDER BY expr`。而 TiDB 中该语法所返回的结果并不承诺任何顺序，与 MySQL 8.0 的行为一致。
 
 ### 视图
 
@@ -262,3 +262,10 @@ TiDB 不需要导入时区表数据也能使用所有时区名称，采用系统
 + FIXED (alias for DECIMAL)
 + SERIAL (alias for BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE)
 + SQL_TSI_* （包括 SQL_TSI_YEAR、SQL_TSI_MONTH、SQL_TSI_WEEK、SQL_TSI_DAY、SQL_TSI_HOUR、SQL_TSI_MINUTE 和 SQL_TSI_SECOND）
+
+### MySQL 弃用功能导致的不兼容问题
+
+TiDB 不支持 MySQL 中标记为弃用的功能，包括：
+
+* 指定浮点类型的精度。MySQL 8.0 [弃用](https://dev.mysql.com/doc/refman/8.0/en/floating-point-types.html)了此功能，建议改用 `DECIMAL` 类型。
+* `ZEROFILL` 属性。 MySQL 8.0 [弃用](https://dev.mysql.com/doc/refman/8.0/en/numeric-type-attributes.html)了此功能，建议在业务应用中填充数字值。

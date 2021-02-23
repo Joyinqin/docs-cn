@@ -35,7 +35,7 @@
       - [使用 Ansible 离线部署](/offline-deployment-using-ansible.md)
     + 跨地域冗余
       - [跨数据中心部署方案](/geo-redundancy-deployment.md)
-      - [配置集群拓扑](/location-awareness.md)
+      - [通过拓扑 label 进行副本调度](/schedule-replicas-by-topology-labels.md)
     - [使用 Ansible 部署 DM 集群](https://pingcap.com/docs-cn/tidb-data-migration/stable/deploy-a-dm-cluster-using-ansible/)
   + 配置
     - [时区](/configure-time-zone.md)
@@ -50,6 +50,7 @@
   + 监控
     - [概述](/tidb-monitoring-framework.md)
     - [监控 TiDB 集群](/monitor-a-tidb-cluster.md)
+    - [将 Grafana 监控数据导出成快照](/exporting-grafana-snapshots.md)
   + 迁移
     - [迁移工具使用指南](/ecosystem-tool-user-guide.md)
     + 从 MySQL 迁移
@@ -60,10 +61,11 @@
   + 运维
     - [Ansible 常见运维操作](/maintain-tidb-using-ansible.md)
     + 备份与恢复
-      - [使用 Mydumper/TiDB Lightning 进行备份与恢复](/backup-and-restore-using-mydumper-lightning.md)
+      + 使用 BR 工具（推荐）
+        - [BR 工具简介](/br/backup-and-restore-tool.md)
+        - [使用 BR 命令行备份恢复](/br/use-br-command-line-tool.md)
+        - [BR 备份恢复场景示例](/br/backup-and-restore-use-cases.md)
       - [使用 Dumpling 导出或备份 TiDB 数据](/export-or-backup-using-dumpling.md)
-      - [使用 BR 进行备份与恢复](/br/backup-and-restore-tool.md)
-      - [BR 备份与恢复场景示例](/br/backup-and-restore-use-cases.md)
     + 定位异常查询
       - [定位慢查询](/identify-slow-queries.md)
       - [定位消耗系统资源多的查询](/identify-expensive-queries.md)
@@ -145,6 +147,10 @@
       - [`ADD COLUMN`](/sql-statements/sql-statement-add-column.md)
       - [`ADD INDEX`](/sql-statements/sql-statement-add-index.md)
       - [`ADMIN`](/sql-statements/sql-statement-admin.md)
+      - [`ADMIN CANCEL DDL`](/sql-statements/sql-statement-admin-cancel-ddl.md)
+      - [`ADMIN CHECKSUM TABLE`](/sql-statements/sql-statement-admin-checksum-table.md)
+      - [`ADMIN CHECK [TABLE|INDEX]`](/sql-statements/sql-statement-admin-check-table-index.md)
+      - [`ADMIN SHOW DDL [JOBS|QUERIES]`](/sql-statements/sql-statement-admin-show-ddl.md)
       - [`ALTER DATABASE`](/sql-statements/sql-statement-alter-database.md)
       - [`ALTER INSTANCE`](/sql-statements/sql-statement-alter-instance.md)
       - [`ALTER TABLE`](/sql-statements/sql-statement-alter-table.md)
@@ -155,6 +161,7 @@
       - [`COMMIT`](/sql-statements/sql-statement-commit.md)
       - [`CREATE DATABASE`](/sql-statements/sql-statement-create-database.md)
       - [`CREATE INDEX`](/sql-statements/sql-statement-create-index.md)
+      - [`CREATE ROLE`](/sql-statements/sql-statement-create-role.md)
       - [`CREATE TABLE LIKE`](/sql-statements/sql-statement-create-table-like.md)
       - [`CREATE TABLE`](/sql-statements/sql-statement-create-table.md)
       - [`CREATE USER`](/sql-statements/sql-statement-create-user.md)
@@ -167,6 +174,7 @@
       - [`DROP COLUMN`](/sql-statements/sql-statement-drop-column.md)
       - [`DROP DATABASE`](/sql-statements/sql-statement-drop-database.md)
       - [`DROP INDEX`](/sql-statements/sql-statement-drop-index.md)
+      - [`DROP ROLE`](/sql-statements/sql-statement-drop-role.md)
       - [`DROP TABLE`](/sql-statements/sql-statement-drop-table.md)
       - [`DROP USER`](/sql-statements/sql-statement-drop-user.md)
       - [`DROP VIEW`](/sql-statements/sql-statement-drop-view.md)
@@ -177,6 +185,7 @@
       - [`FLUSH STATUS`](/sql-statements/sql-statement-flush-status.md)
       - [`FLUSH TABLES`](/sql-statements/sql-statement-flush-tables.md)
       - [`GRANT <privileges>`](/sql-statements/sql-statement-grant-privileges.md)
+      - [`GRANT <role>`](/sql-statements/sql-statement-grant-role.md)
       - [`INSERT`](/sql-statements/sql-statement-insert.md)
       - [`KILL [TIDB]`](/sql-statements/sql-statement-kill.md)
       - [`LOAD DATA`](/sql-statements/sql-statement-load-data.md)
@@ -188,8 +197,10 @@
       - [`RENAME TABLE`](/sql-statements/sql-statement-rename-table.md)
       - [`REPLACE`](/sql-statements/sql-statement-replace.md)
       - [`REVOKE <privileges>`](/sql-statements/sql-statement-revoke-privileges.md)
+      - [`REVOKE <role>`](/sql-statements/sql-statement-revoke-role.md)
       - [`ROLLBACK`](/sql-statements/sql-statement-rollback.md)
       - [`SELECT`](/sql-statements/sql-statement-select.md)
+      - [`SET DEFAULT ROLE`](/sql-statements/sql-statement-set-default-role.md)
       - [`SET [NAMES|CHARACTER SET]`](/sql-statements/sql-statement-set-names.md)
       - [`SET PASSWORD`](/sql-statements/sql-statement-set-password.md)
       - [`SET ROLE`](/sql-statements/sql-statement-set-role.md)
@@ -376,6 +387,9 @@
     - [3.1.0-beta.1](/releases/release-3.1.0-beta.1.md)
     - [3.1.0-beta](/releases/release-3.1.0-beta.md)
   + v3.0
+    - [3.0.20](/releases/release-3.0.20.md)
+    - [3.0.19](/releases/release-3.0.19.md)
+    - [3.0.18](/releases/release-3.0.18.md)
     - [3.0.17](/releases/release-3.0.17.md)
     - [3.0.16](/releases/release-3.0.16.md)
     - [3.0.15](/releases/release-3.0.15.md)

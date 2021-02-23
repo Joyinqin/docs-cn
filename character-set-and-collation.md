@@ -75,6 +75,10 @@ SHOW COLLATION WHERE Charset = 'latin1';
 
 每一个字符集，都有一个默认的 Collation，例如 `utf8` 的默认 Collation 就为 `utf8_bin`。
 
+> **警告：**
+>
+> TiDB 会错误地将 `latin1` 视为 `utf8` 的子集。当用户存储不同于 `latin1` 和 `utf8` 编码的字符时，可能会导致意外情况出现。因此强烈建议使用 `utf8mb4` 字符集。详情参阅 [TiDB #18955](https://github.com/pingcap/tidb/issues/18955)。
+
 > **注意：**
 >
 > `TiDB` 目前的 Collation 只支持区分大小写的比较排序规则。
@@ -126,7 +130,7 @@ ALTER DATABASE db_name
 {{< copyable "sql" >}}
 
 ```sql
-create schema test1 character set utf8 COLLATE uft8_general_ci;
+CREATE SCHEMA test1 CHARACTER SET utf8 COLLATE uft8_general_ci;
 ```
 
 ```
@@ -136,7 +140,7 @@ Query OK, 0 rows affected (0.09 sec)
 {{< copyable "sql" >}}
 
 ```sql
-use test1;
+USE test1;
 ```
 
 ```
@@ -161,7 +165,7 @@ SELECT @@character_set_database, @@collation_database;
 {{< copyable "sql" >}}
 
 ```sql
-create schema test2 character set latin1 COLLATE latin1_general_ci;
+CREATE SCHEMA test2 CHARACTER SET latin1 COLLATE latin1_general_ci;
 ```
 
 ```
@@ -171,7 +175,7 @@ Query OK, 0 rows affected (0.09 sec)
 {{< copyable "sql" >}}
 
 ```sql
-use test2;
+USE test2;
 ```
 
 ```
