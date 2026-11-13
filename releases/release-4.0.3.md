@@ -1,6 +1,7 @@
 ---
 title: TiDB 4.0.3 Release Notes
 aliases: ['/docs-cn/dev/releases/release-4.0.3/']
+summary: TiDB 4.0.3 发布了新版本，包括 TiDB Dashboard、TiFlash、Tools 和改进提升等多个方面的更新和修复。新增功能包括 TiDB Dashboard 显示详细信息、TiFlash 支持文件加密、Tools 支持多种算法压缩备份文件等。改进提升方面包括增加全局变量控制日志记录、加速执行速度、默认打开执行信息收集等。此外，还修复了多个 Bug，包括 gRPC transportReader 异常、数据不完整、无法正确设置 safepoint 等问题。
 ---
 
 # TiDB 4.0.3 Release Notes
@@ -29,12 +30,12 @@ TiDB 版本：4.0.3
 
     + TiCDC
 
-        - 支持 sink-uri 中配置 Kafka 客户端的 ID [#706](https://github.com/pingcap/ticdc/pull/706)
-        - 支持离线更新同步任务的配置 [#699](https://github.com/pingcap/ticdc/pull/699)
-        - 支持自定义同步任务的 ID [#727](https://github.com/pingcap/ticdc/pull/727)
-        - 支持使用 SSL 加密链接向 MySQL 输出数据 [#347](https://github.com/pingcap/ticdc/pull/347)
-        - 支持输出 Avro 格式的变更数据 [#753](https://github.com/pingcap/ticdc/pull/753)
-        - 支持向 Apache Pulsar 输出变更数据 [#751](https://github.com/pingcap/ticdc/pull/751)
+        - 支持 sink-uri 中配置 Kafka 客户端的 ID [#706](https://github.com/pingcap/tiflow/pull/706)
+        - 支持离线更新同步任务的配置 [#699](https://github.com/pingcap/tiflow/pull/699)
+        - 支持自定义同步任务的 ID [#727](https://github.com/pingcap/tiflow/pull/727)
+        - 支持使用 SSL 加密链接向 MySQL 输出数据 [#347](https://github.com/pingcap/tiflow/pull/347)
+        - 支持输出 Avro 格式的变更数据 [#753](https://github.com/pingcap/tiflow/pull/753)
+        - 支持向 Apache Pulsar 输出变更数据 [#751](https://github.com/pingcap/tiflow/pull/751)
 
     + Dumpling
 
@@ -87,7 +88,7 @@ TiDB 版本：4.0.3
 
     + TiCDC
 
-        - 将监控指标总的表 ID 替换为表名 [#695](https://github.com/pingcap/ticdc/pull/695)
+        - 将监控指标总的表 ID 替换为表名 [#695](https://github.com/pingcap/tiflow/pull/695)
 
     + Backup & Restore (BR)
 
@@ -127,7 +128,7 @@ TiDB 版本：4.0.3
     - 修复 `getSchedulers` 可能导致数据争用的问题 [#2638](https://github.com/pingcap/pd/pull/2638)
     - 修复删除 `scheduler` 时导致死锁的问题 [#2637](https://github.com/pingcap/pd/pull/2637)
     - 修复 `balance-leader-scheduler` 没有考虑 placement rule 的问题 [#2636](https://github.com/pingcap/pd/pull/2636)
-    - 修复有时无法正确设置 `safepoint` 的问题，这可能会使 BR 和 dumpling 失败 [#2635](https://github.com/pingcap/pd/pull/2635)
+    - 修复有时无法正确设置 `safepoint` 的问题，这可能会使 BR 和 Dumpling 失败 [#2635](https://github.com/pingcap/pd/pull/2635)
     - 修复 `hot region scheduler` 中目标 store 选择错误的问题 [#2627](https://github.com/pingcap/pd/pull/2627)
     - 修复 PD Leader 切换时 TSO 请求可能花费太长时间的问题 [#2622](https://github.com/pingcap/pd/pull/2622)
     - 修复 PD Leader 切换后过期 `scheduler` 的问题 [#2608](https://github.com/pingcap/pd/pull/2608)
@@ -152,9 +153,9 @@ TiDB 版本：4.0.3
 
     + TiCDC
 
-        - 解决了某些场景下可能发生的 OOM 问题 [#704](https://github.com/pingcap/ticdc/pull/704)
-        - 解决了某些特殊表名可能导致 SQL 语法出错的问题 [#676](https://github.com/pingcap/ticdc/pull/676)
-        - 解决了同步任务处理单元无法正常退出的问题 [#693](https://github.com/pingcap/ticdc/pull/693)
+        - 解决了某些场景下可能发生的 OOM 问题 [#704](https://github.com/pingcap/tiflow/pull/704)
+        - 解决了某些特殊表名可能导致 SQL 语法出错的问题 [#676](https://github.com/pingcap/tiflow/pull/676)
+        - 解决了同步任务处理单元无法正常退出的问题 [#693](https://github.com/pingcap/tiflow/pull/693)
 
     + Backup & Restore (BR)
 

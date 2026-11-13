@@ -1,6 +1,7 @@
 ---
 title: RocksDB 简介
 aliases: ['/docs-cn/dev/storage-engine/rocksdb-overview/','/docs-cn/dev/rocksdb/rocksdb-overview/']
+summary: RocksDB 是 Facebook 基于 LevelDB 开发的 LSM-tree 架构引擎，提供键值存储与读写功能。数据先写入磁盘上的 WAL，再写入内存中的跳表。内存数据达到阈值后刷到磁盘生成 SST 文件，分为多层，90% 数据存储在最后一层。RocksDB 允许创建多个 ColumnFamily，共享同一个 WAL 文件。为提高读取性能，文件按大小切分成 block，存在 BlockCache 中。后台线程执行 MemTable 转化为 SST 文件和合并操作。L0 文件数量过多会触发 WriteStall 阻塞写入。
 ---
 
 # RocksDB 简介
@@ -9,7 +10,7 @@ aliases: ['/docs-cn/dev/storage-engine/rocksdb-overview/','/docs-cn/dev/rocksdb/
 
 内存中的数据达到一定阈值后，会刷到磁盘上生成 SST 文件 (Sorted String Table)，SST 又分为多层（默认至多 6 层），每一层的数据达到一定阈值后会挑选一部分 SST 合并到下一层，每一层的数据是上一层的 10 倍（因此 90% 的数据存储在最后一层）。
 
-RocksDB 允许用户创建多个 ColumnFamily ，这些 ColumnFamily 各自拥有独立的内存跳表以及 SST 文件，但是共享同一个 WAL 文件，这样的好处是可以根据应用特点为不同的 ColumnFamily 选择不同的配置，但是又没有增加对 WAL 的写次数。
+RocksDB 允许用户创建多个 ColumnFamily，这些 ColumnFamily 各自拥有独立的内存跳表以及 SST 文件，但是共享同一个 WAL 文件，这样的好处是可以根据应用特点为不同的 ColumnFamily 选择不同的配置，但是又没有增加对 WAL 的写次数。
 
 ## TiKV 架构
 
@@ -21,12 +22,12 @@ RocksDB 作为 TiKV 的核心存储引擎，用于存储 Raft 日志以及用户
 
 * raft 列：用于存储各个 Region 的元信息。仅占极少量空间，用户可以不必关注。 
 * lock 列：用于存储悲观事务的悲观锁以及分布式事务的一阶段 Prewrite 锁。当用户的事务提交之后，lock cf 中对应的数据会很快删除掉，因此大部分情况下 lock cf 中的数据也很少（少于 1GB）。如果 lock cf 中的数据大量增加，说明有大量事务等待提交，系统出现了 bug 或者故障。
-* write 列：用于存储用户真实的写入数据以及 MVCC 信息（该数据所属事务的开始时间以及提交时间）。当用户写入了一行数据时，如果该行数据长度小于 255 字节，那么会被存储 write 列中，否则的话该行数据会被存入到 default 列中。由于 TiDB 的非 unique 索引存储的 value 为空，unique 索引存储的 value 为主键索引，因此二级索引只会占用 writecf 的空间。
+* write 列：用于存储用户真实的写入数据以及 MVCC 信息（该数据所属事务的开始时间以及提交时间）。当用户写入了一行数据时，如果该行数据长度小于或等于 255 字节，那么会被存储 write 列中，否则该行数据会被存入到 default 列中。由于 TiDB 的非 unique 索引存储的 value 为空，unique 索引存储的 value 为主键索引，因此二级索引只会占用 writecf 的空间。
 * default 列：用于存储超过 255 字节长度的数据。 
 
 ## RocksDB 的内存占用
 
-为了提高读取性能以及减少对磁盘的读取，RocksDB 将存储在磁盘上的文件都按照一定大小切分成 block（默认是 64KB），读取 block 时先去内存中的 BlockCache 中查看该块数据是否存在，存在的话则可以直接从内存中读取而不必访问磁盘。
+为了提高读取性能以及减少对磁盘的读取，RocksDB 将存储在磁盘上的文件都按照一定大小切分成 block（默认是 32KiB），读取 block 时先去内存中的 BlockCache 中查看该块数据是否存在，存在的话则可以直接从内存中读取而不必访问磁盘。
 
 BlockCache 按照 LRU 算法淘汰低频访问的数据，TiKV 默认将系统总内存大小的 45% 用于 BlockCache，用户也可以自行修改 `storage.block-cache.capacity` 配置设置为合适的值，但是不建议超过系统总内存的 60%。
 
@@ -46,7 +47,7 @@ RocksDB 中，将内存中的 MemTable 转化为磁盘上的 SST 文件，以及
 
 RocksDB 的 L0 与其他层不同，L0 的各个 SST 是按照生成顺序排列，各个 SST 之间的 key 范围存在重叠，因此查询的时候必须依次查询 L0 中的每一个 SST。为了不影响查询性能，当 L0 中的文件数量过多时，会触发 WriteStall 阻塞写入。
 
-如果用户遇到了写延迟突然大幅度上涨，可以先查看 Grafana RocksDB KV 面板 WriteStall Reason 指标，如果是 L0 文件数量过多引起的 WriteStall，可以调整下面几个配置到 64，详细见 [《TiDB in Action》](https://github.com/pingcap-incubator/tidb-in-action/blob/master/session4/chapter8/threadpool-optimize.md#5-rocksdb)。
+如果用户遇到了写延迟突然大幅度上涨，可以先查看 Grafana RocksDB KV 面板 WriteStall Reason 指标，如果是 L0 文件数量过多引起的 WriteStall，可以调整下面几个配置到 64，详细见[《TiDB in Action》](https://github.com/pingcap-incubator/tidb-in-action/blob/master/session4/chapter8/threadpool-optimize.md#5-rocksdb)。
 
 ```
 rocksdb.defaultcf.level0-slowdown-writes-trigger

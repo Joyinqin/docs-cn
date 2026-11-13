@@ -1,5 +1,6 @@
 ---
 title: TiDB 4.0.10 Release Notes
+summary: TiDB 4.0.10 发布日期为 2021 年 1 月 15 日。新功能包括 PD 添加了配置项 `enable-redact-log` 和 TiFlash 添加了配置项 `security.redact_info_log`。改进提升方面，TiDB 添加了 `txn-entry-size-limit` 配置项，PD 优化了 `store-state-filter` 监控，Tools 中 TiCDC 默认开启了 old value 特性。Bug 修复方面，TiDB 修复了多个并发导致的问题，TiKV 修复了 peer 和 ready 之间的错误映射，PD 修复了 ID 分配不是单调递增的问题，TiFlash 修复了多个启动和函数调用的问题，Tools 中 TiCDC 修复了多个协议和内存问题，Dumpling 修改了默认设置的行为。 Backup & Restore (BR) 修复了多个备份和恢复问题，TiDB Binlog 修复了启用 `AMEND TRANSACTION` 特性时的问题，TiDB Lightning 修复了多个备份和使用问题。
 ---
 
 # TiDB 4.0.10 Release Notes
@@ -33,8 +34,7 @@ TiDB 版本：4.0.10
 
     + TiCDC
 
-        - 为 `maxwell` 协议默认开启 old value 特性 [#1144](https://github.com/pingcap/ticdc/pull/1144)
-        - 默认启用 unified sorter 特性 [#1230](https://github.com/pingcap/ticdc/pull/1230)
+        - 默认启用 unified sorter 特性 [#1230](https://github.com/pingcap/tiflow/pull/1230)
 
     + Dumpling
 
@@ -82,17 +82,16 @@ TiDB 版本：4.0.10
 
     + TiCDC
 
-        - 修复 `maxwell` 协议的问题，包括 `base64` 数据输出和将 TSO 转换成 unix timestamp [#1173](https://github.com/pingcap/ticdc/pull/1173)
-        - 修复过期的元数据可能引发新创建的 changefeed 异常的问题 [#1184](https://github.com/pingcap/ticdc/pull/1184)
-        - 修复在关闭的 notifier 上创建 receiver 的问题[#1199](https://github.com/pingcap/ticdc/pull/1199)
-        - 修复在 etcd 更新缓慢时导致内存访问量增长的问题 [#1227](https://github.com/pingcap/ticdc/pull/1227)
-        - 修复 `max-batch-size` 不生效的问题 [#1253](https://github.com/pingcap/ticdc/pull/1253)
-        - 修复清理过期任务信息的问题 [#1280](https://github.com/pingcap/ticdc/pull/1280)
-        - 修复 MySQL sink 中由于没有调用 `rollback` 而导致回收 db conn 卡住的问题 [#1285](https://github.com/pingcap/ticdc/pull/1285)
+        - 修复过期的元数据可能引发新创建的 changefeed 异常的问题 [#1184](https://github.com/pingcap/tiflow/pull/1184)
+        - 修复在关闭的 notifier 上创建 receiver 的问题[#1199](https://github.com/pingcap/tiflow/pull/1199)
+        - 修复在 etcd 更新缓慢时导致内存访问量增长的问题 [#1227](https://github.com/pingcap/tiflow/pull/1227)
+        - 修复 `max-batch-size` 不生效的问题 [#1253](https://github.com/pingcap/tiflow/pull/1253)
+        - 修复清理过期任务信息的问题 [#1280](https://github.com/pingcap/tiflow/pull/1280)
+        - 修复 MySQL sink 中由于没有调用 `rollback` 而导致回收 db conn 卡住的问题 [#1285](https://github.com/pingcap/tiflow/pull/1285)
 
     + Dumpling
 
-        - 修改默认设置的 `tidb_mem_quota_query` 的行为以避免 TiDB 内存溢出 [#233](https://github.com/pingcap/dumpling/pull/233)
+        - 修改默认设置的 [`tidb_mem_quota_query`](/system-variables.md#tidb_mem_quota_query) 的行为以避免 TiDB 内存溢出 [#233](https://github.com/pingcap/dumpling/pull/233)
 
     + Backup & Restore (BR)
 

@@ -1,5 +1,6 @@
 ---
 title: TiUP DM
+summary: TiUP DM 是用于对 DM 集群进行日常运维工作的管理工具，包括部署、启动、关闭、销毁、弹性扩缩容、升级、参数管理等操作。命令包括 import、template、deploy、list、display、start、stop、restart、scale-in、scale-out、upgrade、prune、edit-config、reload、patch、destroy、audit、replay、enable、disable、help。
 ---
 
 # TiUP DM
@@ -32,7 +33,7 @@ tiup dm [command] [flags]
 
 运维过程中涉及到很多操作：指定 systemctl 启动/停止服务，等待端口上线/下线等，每个操作可能会消耗数秒，`--wait-timeout` 用于设置每个步骤的最长等待时间（单位为秒），超时后报错退出。
 
-### -y, --yes 
+### -y, --yes
 
 - 跳过所有风险操作的二次确认，除非是使用脚本调用 TiUP，否则不推荐使用。
 - 数据类型：`BOOLEAN`
@@ -73,5 +74,3 @@ tiup dm [command] [flags]
 - [enable](/tiup/tiup-component-dm-enable.md)：开启指定集群或服务开机自启动
 - [disable](/tiup/tiup-component-dm-disable.md)：关闭指定集群或服务开机自启动
 - [help](/tiup/tiup-component-dm-help.md)：输出帮助信息
-
-[<< 返回上一页 - TiUP 组件清单](/tiup/tiup-reference.md#组件清单)

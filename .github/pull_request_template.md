@@ -2,9 +2,9 @@
 
 ### First-time contributors' checklist <!--Remove this section if you're not a first-time contributor.-->
 
-- [ ] I've signed [**Contributor License Agreement**](https://cla-assistant.io/pingcap/docs-cn) that's required for repo owners to accept my contribution.
+- [ ] I've signed the [**Contributor License Agreement**](https://cla.pingcap.net/pingcap/docs), which is required for the repository owners to accept my contribution.
 
-### What is changed, added or deleted? (Required)
+### What is changed, added, or deleted? (Required)
 
 <!--Tell us what you did and why.-->
 
@@ -19,21 +19,24 @@ By default, **CHOOSE MASTER ONLY** so your changes will be applied to the next T
 For details, see [tips for choosing the affected versions (in Chinese)](https://github.com/pingcap/docs-cn/blob/master/CONTRIBUTING.md#版本选择指南).
 
 - [ ] master (the latest development version)
-- [ ] v5.3 (TiDB 5.3 versions)
-- [ ] v5.2 (TiDB 5.2 versions)
-- [ ] v5.1 (TiDB 5.1 versions)
-- [ ] v5.0 (TiDB 5.0 versions)
-- [ ] v4.0 (TiDB 4.0 versions)
-- [ ] v3.1 (TiDB 3.1 versions)
-- [ ] v3.0 (TiDB 3.0 versions)
-- [ ] v2.1 (TiDB 2.1 versions)
+- [ ] v9.0 (TiDB 9.0 versions)
+- [ ] v8.5 (TiDB 8.5 versions)
+- [ ] v8.1 (TiDB 8.1 versions)
+- [ ] v7.5 (TiDB 7.5 versions)
+- [ ] v7.1 (TiDB 7.1 versions)
+- [ ] v6.5 (TiDB 6.5 versions)
 
 ### What is the related PR or file link(s)?
 
-<!--Reference link(s) will help reviewers review your PR quickly.-->
+<!--Reference links help reviewers review your PR quickly. If this documentation update is related to code changes, link the corresponding code PRs below.-->
 
+- Related code change PR links (if applicable):
 - This PR is translated from:
 - Other reference link(s):
+
+### AI agent involvement
+
+- [ ] The changes in this PR were primarily made by an AI agent on behalf of the PR author.
 
 ### Do your changes match any of the following descriptions?
 

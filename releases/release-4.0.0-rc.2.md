@@ -1,6 +1,7 @@
 ---
 title: TiDB 4.0 RC.2 Release Notes
 aliases: ['/docs-cn/dev/releases/release-4.0.0-rc.2/']
+summary: TiDB 4.0 RC.2 发布说明：兼容性变化包括事务容量上限统一为 10GB，查询 CLUSTER_LOG 表需指定时间范围，CREATE TABLE 创建分区表时指定未支持的选项将创建非分区普通表。重点修复了多个 Bug。新增了备份和恢复语句，支持预检查单个 Region 提交数据量。TiKV 新增了加密存储适配和配置 gRPC 消息大小上限。PD 修复了 pd-ctl 命令错误和缺失监控的问题。TiFlash 优化了系统负载和新增了容量配置参数。Tools 方面修复了多个问题和优化了功能。
 ---
 
 # TiDB 4.0 RC.2 Release Notes
@@ -72,7 +73,7 @@ TiDB 版本：4.0.0-rc.2
 + TiKV
 
     - 加密存储适配 tikv-ctl，适配后开启加密存储后通过 tikv-ctl 操作管理集群 [#7698](https://github.com/tikv/tikv/pull/7698)
-    - 新增加密码 Snapshot 中的 `lock column famliy` 的功能 [#7712](https://github.com/tikv/tikv/pull/7712)
+    - 新增加密码 Snapshot 中的 `lock column family` 的功能 [#7712](https://github.com/tikv/tikv/pull/7712)
     - 修改 Raftstore latency 在 Grafana 面板显示方式，采用 heatmap 方便诊断性能抖动问题 [#7717](https://github.com/tikv/tikv/pull/7717)
     - 支持配置 gRPC 消息大小的上限 [#7824](https://github.com/tikv/tikv/pull/7824)
     - Grafana 面板中添加了 encryption 相关的监控 [#7827](https://github.com/tikv/tikv/pull/7827)
@@ -99,7 +100,7 @@ TiDB 版本：4.0.0-rc.2
 
     - TiCDC
 
-        - 支持通过 `cdc cli` 来管理同步任务 (changefeed) [#546](https://github.com/pingcap/ticdc/pull/546)
+        - 支持通过 `cdc cli` 来管理同步任务 (changefeed) [#546](https://github.com/pingcap/tiflow/pull/546)
 
     - Backup & Restore (BR)
 
@@ -186,11 +187,11 @@ TiDB 版本：4.0.0-rc.2
 
     - TiCDC
 
-        - 修复当环境变量 `TZ` 未设置时使用错误时区的问题 [#512](https://github.com/pingcap/ticdc/pull/512)
-        - 修复 owner 因为部分错误没有正确处理导致 server 退出时没有清理资源的问题 [#528](https://github.com/pingcap/ticdc/pull/528)
-        - 修复重连 TiKV 可能导致 TiCDC 阻塞的问题 [#531](https://github.com/pingcap/ticdc/pull/531)
-        - 优化初始化表结构时的内存使用 [#534](https://github.com/pingcap/ticdc/pull/534)
-        - 使用 watch 模式监听同步状态变更并进行准实时更新，减少同步延迟 [#481](https://github.com/pingcap/ticdc/pull/481)
+        - 修复当环境变量 `TZ` 未设置时使用错误时区的问题 [#512](https://github.com/pingcap/tiflow/pull/512)
+        - 修复 owner 因为部分错误没有正确处理导致 server 退出时没有清理资源的问题 [#528](https://github.com/pingcap/tiflow/pull/528)
+        - 修复重连 TiKV 可能导致 TiCDC 阻塞的问题 [#531](https://github.com/pingcap/tiflow/pull/531)
+        - 优化初始化表结构时的内存使用 [#534](https://github.com/pingcap/tiflow/pull/534)
+        - 使用 watch 模式监听同步状态变更并进行准实时更新，减少同步延迟 [#481](https://github.com/pingcap/tiflow/pull/481)
 
     - Backup & Restore (BR)
         - 修复 BR 恢复带有 `auto_random` 属性的表之后，插入数据有一定概率触发 duplicate entry 错误的问题 [#241](https://github.com/pingcap/br/issues/241)

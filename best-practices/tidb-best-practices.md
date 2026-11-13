@@ -1,13 +1,14 @@
 ---
 title: TiDB 最佳实践
-aliases: ['/docs-cn/dev/best-practices/tidb-best-practices/']
+summary: TiDB 最佳实践总结了使用 TiDB 的一些优化技巧，包括 Raft 一致性协议、分布式事务、数据分片、负载均衡、SQL 到 KV 的映射方案、二级索引的实现方法等。建议阅读官方文档和知乎专栏了解更多细节。部署时推荐使用 TiUP，导入数据时可对 TiKV 参数进行调优。在写入和查询时需注意事务大小限制和并发度设置。监控系统和日志查看也是了解系统状态的重要方法。适用场景包括数据量大、不希望做 Sharding、需要事务和强一致性等。
+aliases: ['/zh/tidb/stable/tidb-best-practices/','/zh/tidb/dev/tidb-best-practices/','/docs-cn/dev/best-practices/tidb-best-practices/']
 ---
 
 # TiDB 最佳实践
 
 本文档总结使用 TiDB 时的一些最佳实践，主要涉及 SQL 使用和 OLAP/OLTP 优化技巧，特别是一些 TiDB 专有的优化开关。
 
-建议先阅读讲解 TiDB 原理的三篇文章（[讲存储](https://pingcap.com/blog-cn/tidb-internal-1/)，[说计算](https://pingcap.com/blog-cn/tidb-internal-2/)，[谈调度](https://pingcap.com/blog-cn/tidb-internal-3/)），再来看这篇文章。
+建议先阅读讲解 TiDB 原理的三篇文章（[讲存储](https://pingkai.cn/tidbcommunity/blog/dbe4f467)，[说计算](https://pingkai.cn/tidbcommunity/blog/8427565a)，[谈调度](https://pingkai.cn/tidbcommunity/blog/a558961f)），再来看这篇文章。
 
 ## 前言
 
@@ -17,7 +18,7 @@ TiDB 是一个兼容 MySQL 协议和语法的分布式数据库，但是由于�
 
 ## 基本概念
 
-TiDB 的最佳实践与其实现原理密切相关，建议读者先了解一些基本的实现机制，包括 Raft、分布式事务、数据分片、负载均衡、SQL 到 KV 的映射方案、二级索引的实现方法、分布式执行引擎。下面会做一点简单的介绍，更详细的信息可以参考 PingCAP 公众号以及知乎专栏的一些文章。
+TiDB 的最佳实践与其实现原理密切相关，建议读者先了解一些基本的实现机制，包括 Raft、分布式事务、数据分片、负载均衡、SQL 到 KV 的映射方案、二级索引的实现方法、分布式执行引擎。下面会做一点简单的介绍，更详细的信息可以参考 {{{ .company }}} 公众号以及知乎专栏的一些文章。
 
 ### Raft
 
@@ -27,7 +28,7 @@ Raft 是一种一致性协议，能提供强一致的数据复制保证，TiDB �
 
 ### 分布式事务
 
-TiDB 提供完整的分布式事务，事务模型是在 [Google Percolator](https://research.google.com/pubs/pub36726.html) 的基础上做了一些优化。具体的实现可以参考[《Percolator 和 TiDB 事务算法》](https://pingcap.com/blog-cn/percolator-and-txn/)这篇文章。本文档只讨论以下几点：
+TiDB 提供完整的分布式事务，事务模型是在 [Google Percolator](https://research.google/pubs/large-scale-incremental-processing-using-distributed-transactions-and-notifications/) 的基础上做了一些优化。具体的实现可以参考[《Percolator 和 TiDB 事务算法》](https://pingkai.cn/tidbcommunity/blog/f537be2c)这篇文章。本文档只讨论以下几点：
 
 + 乐观锁
 
@@ -35,7 +36,7 @@ TiDB 提供完整的分布式事务，事务模型是在 [Google Percolator](htt
 
 + 悲观锁
 
-    TiDB 的悲观事务模型，悲观事务的行为和 MySQL 基本一致，在执行阶段就会上锁，先到先得，避免冲突情况下的重试，可以保证有较多冲突的事务的成功率。悲观锁同时解决了希望通过 `select for update` 对数据提前锁定的场景。但如果业务场景本身冲突较少，乐观锁的性能会更有优势。
+    TiDB 的悲观事务模式，悲观事务的行为和 MySQL 基本一致，在执行阶段就会上锁，先到先得，避免冲突情况下的重试，可以保证有较多冲突的事务的成功率。悲观锁同时解决了希望通过 `select for update` 对数据提前锁定的场景。但如果业务场景本身冲突较少，乐观锁的性能会更有优势。
 
 + 事务大小限制
 
@@ -57,7 +58,7 @@ PD 会根据整个 TiKV 集群的状态，对集群的负载进行调度。调�
 
 ### SQL on KV
 
-TiDB 自动将 SQL 结构映射为 KV 结构。具体的可以参考[《三篇文章了解 TiDB 技术内幕 - 说计算》](https://pingcap.com/blog-cn/tidb-internal-2/)这篇文档。简单来说，TiDB 执行了以下操作：
+TiDB 自动将 SQL 结构映射为 KV 结构。具体的可以参考[《三篇文章了解 TiDB 技术内幕 - 说计算》](https://pingkai.cn/tidbcommunity/blog/8427565a)这篇文档。简单来说，TiDB 执行了以下操作：
 
 + 一行数据映射为一个 KV，Key 以 `TableID` 构造前缀，以行 ID 为后缀
 + 一条索引映射为一个 KV，Key 以 `TableID+IndexID` 构造前缀，以索引值构造后缀
@@ -70,7 +71,7 @@ TiDB 支持完整的二级索引，并且是全局索引，很多查询可以通
 
 + 二级索引是否越多越好
 
-    二级索引能加速查询，但是要注意新增一个索引是有副作用的。上一节介绍了索引的存储模型，那么每增加一个索引，在插入一条数据的时候，就要新增一个 Key-Value，所以索引越多，写入越慢，并且空间占用越大。另外过多的索引也会影响优化器运行时间，并且不合适的索引会误导优化器。所以索引并不是越多越好。
+    二级索引能加速查询，但是要注意新增一个索引是有副作用的。上一节介绍了索引的存储格式，那么每增加一个索引，在插入一条数据的时候，就要新增一个 Key-Value，所以索引越多，写入越慢，并且空间占用越大。另外过多的索引也会影响优化器运行时间，并且不合适的索引会误导优化器。所以索引并不是越多越好。
 
 + 对哪些列建索引比较合适
 
@@ -79,11 +80,11 @@ TiDB 支持完整的二级索引，并且是全局索引，很多查询可以通
     - 区分度比较大的列，通过索引能显著地减少过滤后的行数
     - 有多个查询条件时，可以选择组合索引，注意需要把等值条件的列放在组合索引的前面
 
-    这里举一个例子，假设常用的查询是 `select * from t where c1 = 10 and c2 = 100 and c3 > 10`, 那么可以考虑建立组合索引 `Index cidx (c1, c2, c3)`，这样可以用查询条件构造出一个索引前缀进行 Scan。
+    这里举一个例子，假设常用的查询是 `select * from t where c1 = 10 and c2 = 100 and c3 > 10`，那么可以考虑建立组合索引 `Index cidx (c1, c2, c3)`，这样可以用查询条件构造出一个索引前缀进行 Scan。
 
 + 通过索引查询和直接扫描 Table 的区别
 
-    TiDB 实现了全局索引，所以索引和 Table 中的数据并不一定在一个数据分片上。通过索引查询的时候，需要先扫描索引，得到对应的行 ID，然后通过行 ID 去取数据，所以可能会涉及到两次网络请求，会有一定的性能开销。
+    TiDB 实现了[全局索引](/global-indexes.md)，所以索引和 Table 中的数据并不一定在一个数据分片上。通过索引查询的时候，需要先扫描索引，得到对应的行 ID，然后通过行 ID 去取数据，所以可能会涉及到两次网络请求，会有一定的性能开销。
 
     如果查询涉及到大量的行，那么扫描索引是并发进行，只要第一批结果已经返回，就可以开始去取 Table 的数据，所以这里是一个并行 + Pipeline 的模式，虽然有两次访问的开销，但是延迟并不会很大。
 
@@ -110,7 +111,7 @@ TiDB 支持完整的二级索引，并且是全局索引，很多查询可以通
 
 + 通过索引保证结果顺序
 
-    索引除了可以用来过滤数据之外，还能用来对数据排序，首先按照索引的顺序获取行 ID，然后再按照行 ID 的返回顺序返回行的内容，这样可以保证返回结果按照索引列有序。前面提到了扫索引和获取 Row 之间是并行 + Pipeline 模式，如果要求按照索引的顺序返回 Row，那么这两次查询之间的并发度设置的太高并不会降低延迟，所以默认的并发度比较保守。可以通过 [tidb_index_serial_scan_concurrency](/system-variables.md#tidb_index_serial_scan_concurrency) 变量进行并发度调整。
+    索引除了可以用来过滤数据之外，还能用来对数据排序，TiDB 首先按照索引的顺序获取行 ID，然后再按照这些行 ID 的顺序返回行的内容，这样可以保证返回结果按照索引列有序。前面提到了扫索引和获取 Row 之间是并行 + Pipeline 模式，如果要求按照索引的顺序返回 Row，那么这两次查询之间的并发度设置的太高并不会降低延迟，所以默认的并发度比较保守。可以通过调整 [`tidb_executor_concurrency`](/system-variables.md#tidb_executor_concurrency-从-v50-版本开始引入) 来提高并发度。
 
 + 逆序索引
 
@@ -183,9 +184,9 @@ TiDB [使用 Grafana + Prometheus 监控系统状态](/tidb-monitoring-framework
 
 除了文档之外，还有很多不错的文章介绍 TiDB 的各项技术细节内幕，大家可以关注下面这些文章发布渠道：
 
-+ 公众号：微信搜索 PingCAP
++ 公众号：微信搜索 {{{ .company }}}
 + 知乎专栏：[TiDB 的后花园](https://zhuanlan.zhihu.com/newsql)
-+ [官方博客](https://pingcap.com/blog-cn/)
++ [官方博客](https://pingkai.cn/tidbcommunity/blog)
 
 ## TiDB 的最佳适用场景
 
@@ -195,4 +196,4 @@ TiDB [使用 Grafana + Prometheus 监控系统状态](/tidb-monitoring-framework
 + 不希望做 Sharding 或者懒得做 Sharding
 + 访问模式上没有明显的热点
 + 需要事务、需要强一致、需要灾备
-+ 希望 Real-Time HTAP，减少存储链路
++ 希望 Real-Time HTAP，减少数据链路

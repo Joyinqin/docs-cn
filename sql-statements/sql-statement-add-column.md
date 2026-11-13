@@ -11,37 +11,44 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-add-column/','/docs-cn/dev/
 ## 语法图
 
 ```ebnf+diagram
-AlterTableStmt ::=
-    'ALTER' IgnoreOptional 'TABLE' TableName ( AlterTableSpecListOpt AlterTablePartitionOpt | 'ANALYZE' 'PARTITION' PartitionNameList ( 'INDEX' IndexNameList )? AnalyzeOptionListOpt )
+AlterTableStmt
+         ::= 'ALTER' 'IGNORE'? 'TABLE' TableName AddColumnSpec ( ',' AddColumnSpec )*
 
-AlterTableSpec ::=
-    TableOptionList
-|   'SET' 'TIFLASH' 'REPLICA' LengthNum LocationLabelList
-|   'CONVERT' 'TO' CharsetKw ( CharsetName | 'DEFAULT' ) OptCollate
-|   'ADD' ( ColumnKeywordOpt IfNotExists ( ColumnDef ColumnPosition | '(' TableElementList ')' ) | Constraint | 'PARTITION' IfNotExists NoWriteToBinLogAliasOpt ( PartitionDefinitionListOpt | 'PARTITIONS' NUM ) )
-|   ( ( 'CHECK' | 'TRUNCATE' ) 'PARTITION' | ( 'OPTIMIZE' | 'REPAIR' | 'REBUILD' ) 'PARTITION' NoWriteToBinLogAliasOpt ) AllOrPartitionNameList
-|   'COALESCE' 'PARTITION' NoWriteToBinLogAliasOpt NUM
-|   'DROP' ( ColumnKeywordOpt IfExists ColumnName RestrictOrCascadeOpt | 'PRIMARY' 'KEY' | 'PARTITION' IfExists PartitionNameList | ( KeyOrIndex IfExists | 'CHECK' ) Identifier | 'FOREIGN' 'KEY' IfExists Symbol )
-|   'EXCHANGE' 'PARTITION' Identifier 'WITH' 'TABLE' TableName WithValidationOpt
-|   ( 'IMPORT' | 'DISCARD' ) ( 'PARTITION' AllOrPartitionNameList )? 'TABLESPACE'
-|   'REORGANIZE' 'PARTITION' NoWriteToBinLogAliasOpt ReorganizePartitionRuleOpt
-|   'ORDER' 'BY' AlterOrderItem ( ',' AlterOrderItem )*
-|   ( 'DISABLE' | 'ENABLE' ) 'KEYS'
-|   ( 'MODIFY' ColumnKeywordOpt IfExists | 'CHANGE' ColumnKeywordOpt IfExists ColumnName ) ColumnDef ColumnPosition
-|   'ALTER' ( ColumnKeywordOpt ColumnName ( 'SET' 'DEFAULT' ( SignedLiteral | '(' Expression ')' ) | 'DROP' 'DEFAULT' ) | 'CHECK' Identifier EnforcedOrNot | 'INDEX' Identifier IndexInvisible )
-|   'RENAME' ( ( 'COLUMN' | KeyOrIndex ) Identifier 'TO' Identifier | ( 'TO' | '='? | 'AS' ) TableName )
-|   LockClause
-|   AlgorithmClause
-|   'FORCE'
-|   ( 'WITH' | 'WITHOUT' ) 'VALIDATION'
-|   'SECONDARY_LOAD'
-|   'SECONDARY_UNLOAD'
+TableName ::=
+    Identifier ('.' Identifier)?
 
-ColumnDef ::=
-    ColumnName ( Type | 'SERIAL' ) ColumnOptionListOpt
+AddColumnSpec
+         ::= 'ADD' 'COLUMN' 'IF NOT EXISTS'? ColumnName ColumnType ColumnOption+ ( 'FIRST' | 'AFTER' ColumnName )?
 
-ColumnPosition ::=
-    ( 'FIRST' | 'AFTER' ColumnName )?
+ColumnType
+         ::= NumericType
+           | StringType
+           | DateAndTimeType
+           | 'SERIAL'
+
+ColumnOption
+         ::= 'NOT'? 'NULL'
+           | 'AUTO_INCREMENT'
+           | 'PRIMARY'? 'KEY' ( 'CLUSTERED' | 'NONCLUSTERED' )? ( 'GLOBAL' | 'LOCAL' )?
+           | 'UNIQUE' 'KEY'? ( 'GLOBAL' | 'LOCAL' )?
+           | 'DEFAULT' DefaultValueExpr
+           | 'SERIAL' 'DEFAULT' 'VALUE'
+           | 'ON' 'UPDATE' NowSymOptionFraction
+           | 'COMMENT' stringLit
+           | ( 'CONSTRAINT' Identifier? )? 'CHECK' '(' Expression ')' ( 'NOT'? ( 'ENFORCED' | 'NULL' ) )?
+           | 'GENERATED' 'ALWAYS' 'AS' '(' Expression ')' ( 'VIRTUAL' | 'STORED' )?
+           | 'REFERENCES' TableName ( '(' IndexPartSpecificationList ')' )? Match? OnDeleteUpdateOpt
+           | 'COLLATE' CollationName
+           | 'COLUMN_FORMAT' ColumnFormat
+           | 'STORAGE' StorageMedia
+           | 'AUTO_RANDOM' ( '(' LengthNum ')' )?
+
+DefaultValueExpr ::=
+    NowSymOptionFractionParentheses
+|   SignedLiteral
+|   NextValueForSequenceParentheses
+|   BuiltinFunction
+|   '(' SignedLiteral ')'
 ```
 
 ## 示例
@@ -133,10 +140,10 @@ SELECT * FROM t1;
 
 ## MySQL 兼容性
 
-* 不支持在一条语句中同时添加多列。
 * 不支持将新添加的列设为 `PRIMARY KEY`。
 * 不支持将新添加的列设为 `AUTO_INCREMENT`。
 * 对添加生成列有局限性，具体可参考：[生成列局限性](/generated-columns.md#生成列的局限性)。
+* TiDB 对[分区表](/partitioned-table.md)进行了扩展，你可以在添加新列时通过将 `PRIMARY KEY` 或 `UNIQUE INDEX` 设置为 `GLOBAL` 来设置[全局索引](/global-indexes.md)。该扩展与 MySQL 不兼容。
 
 ## 另请参阅
 

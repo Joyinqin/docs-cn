@@ -1,11 +1,12 @@
 ---
 title: 日期和时间类型
 aliases: ['/docs-cn/dev/data-type-date-and-time/','/docs-cn/dev/reference/sql/data-types/date-and-time/']
+summary: TiDB 支持 MySQL 的所有日期和时间类型，包括 DATE、TIME、DATETIME、TIMESTAMP 和 YEAR。每种类型都有有效值范围，值为 0 表示无效值。TIMESTAMP 和 DATETIME 类型能自动生成新的时间值。关于日期和时间值类型，需要注意日期部分必须是“年 - 月 - 日”的格式，如果日期的年份部分是 2 位数，TiDB 会根据具体规则进行转换。不同类型的零值如下表所示：DATE:0000-00-00, TIME:00:00:00, DATETIME:0000-00-00 00:00:00, TIMESTAMP:0000-00-00 00:00:00, YEAR:0000。如果 SQL 模式允许使用无效的 DATE、DATETIME、TIMESTAMP 值，无效值会自动转换为相应的零值。
 ---
 
 # 日期和时间类型
 
-TiDB 支持 MySQL 所有的日期和时间类型，包括 [`DATE`](#date-类型)、[`TIME`](#time-类型)、[`DATETIME`](#datetime-类型)、[`TIMESTAMP`](#timestamp-类型) 以及 [`YEAR`](#year-类型)。完整信息可以参考 [MySQL 中的时间和日期类型](https://dev.mysql.com/doc/refman/5.7/en/date-and-time-types.html)。
+TiDB 支持 MySQL 所有的日期和时间类型，包括 [`DATE`](#date-类型)、[`TIME`](#time-类型)、[`DATETIME`](#datetime-类型)、[`TIMESTAMP`](#timestamp-类型) 以及 [`YEAR`](#year-类型)。完整信息可以参考 [MySQL 中的时间和日期类型](https://dev.mysql.com/doc/refman/8.0/en/date-and-time-types.html)。
 
 每种类型都有有效值范围，值为 0 表示无效值。此外，`TIMESTAMP` 和 `DATETIME` 类型能自动生成新的时间值。
 
@@ -128,7 +129,7 @@ TiDB 支持 MySQL 所有的日期和时间类型，包括 [`DATE`](#date-类型)
 
 ### `DATE` 类型
 
-`DATE` 类型只包含日期部分，不包含时间部分。`DATE` 类型的格式为 `YYYY-MM-DD`，支持的范围是 `1000-01-01` 到 `9999-12-31`。
+`DATE` 类型只包含日期部分，不包含时间部分。`DATE` 类型的格式为 `YYYY-MM-DD`，支持的范围是 `0000-01-01` 到 `9999-12-31`。
 
 {{< copyable "sql" >}}
 
@@ -152,7 +153,7 @@ TIME[(fsp)]
 
 ### `DATETIME` 类型
 
-`DATETIME` 类型是日期和时间的组合，格式为 `YYYY-MM-DD HH:MM:SS[.fraction]`。支持的范围是 `1000-01-01 00:00:00.000000` 到 `9999-12-31 23:59:59.999999`。`fsp` 参数表示秒精度，取值范围为 0~6，默认值为 0。TiDB 支持字符串或数字转换为 `DATETIME` 类型。
+`DATETIME` 类型是日期和时间的组合，格式为 `YYYY-MM-DD HH:MM:SS[.fraction]`。支持的范围是 `0000-01-01 00:00:00.000000` 到 `9999-12-31 23:59:59.999999`。`fsp` 参数表示秒精度，取值范围为 0~6，默认值为 0。TiDB 支持字符串或数字转换为 `DATETIME` 类型。
 
 {{< copyable "sql" >}}
 
@@ -228,7 +229,7 @@ CREATE TABLE t1 (
 
 ## 时间值的小数部分
 
-`DATETIME` 和 `TIMESTAMP` 值最多可以有 6 位小数，精确到毫秒。如果包含小数部分，值的格式为 `YYYY-MM-DD HH:MM:SS[.fraction]`，小数部分的范围为 `000000` 到`999999`。必须使用小数点分隔小数部分与其他部分。
+`DATETIME` 和 `TIMESTAMP` 值最多可以有 6 位小数，精确到微秒。如果包含小数部分，值的格式为 `YYYY-MM-DD HH:MM:SS[.fraction]`，小数部分的范围为 `000000` 到`999999`。必须使用小数点分隔小数部分与其他部分。
 
 + 使用 `type_name(fsp)` 可以定义精确到小数的列，其中 `type_name` 可以是`TIME`、`DATETIME` 或 `TIMESTAMP`。例如：
 
@@ -240,7 +241,7 @@ CREATE TABLE t1 (
 
     `fsp` 范围是 `0` 到 `6`。
 
-    `0` 表示没有小数部分。如果省略了 `fsp` ，默认为 `0`。
+    `0` 表示没有小数部分。如果省略了 `fsp`，默认为 `0`。
 
 + 当插入包含小数部分的 `TIME`、`DATETIME` 或 `TIMESTAMP` 时，如果小数部分的位数过少或过多，可能需要进行四舍五入。例如：
 
@@ -292,7 +293,7 @@ CREATE TABLE t1 (
 `DATETIME` 或 `TIMESTAMP` 的转换：
 
 + 当 `DATETIME` 或 `TIMESTAMP` 转换为 `DATE` 时，时间和小数部分将被舍弃。例如，`1999-12-31 23:59:59.499` 被转换为 `1999-12-31`。
-+ 当 `DATETIME` 或 `TIMESTAMP` 转换为 `TIME` 时，时间部分被舍弃，因为 `TIME` 不包含任何时间信息。
++ 当 `DATETIME` 或 `TIMESTAMP` 转换为 `TIME` 时，日期部分被舍弃，因为 `TIME` 不包含任何日期信息。
 
 如果要将 `TIME` 转换为其他时间和日期格式，日期部分会自动指定为 `CURRENT_DATE()`。最终的转换结果是由 `TIME` 和 `CURRENT_DATE()` 组成的日期。也就是说，如果 `TIME` 的值超出了 `00:00:00` 到 `23:59:59` 的范围，那么转换后的日期部分并不表示当前的日期。
 

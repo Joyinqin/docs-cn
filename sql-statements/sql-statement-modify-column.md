@@ -6,50 +6,72 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-modify-column/','/docs-cn/d
 
 # MODIFY COLUMN
 
-`ALTER TABLE .. MODIFY COLUMN` 语句用于修改已有表上的列，包括列的数据类型和属性。若要同时重命名，可改用 [`CHANGE COLUMN`](/sql-statements/sql-statement-change-column.md) 语句。
+`ALTER TABLE ... MODIFY COLUMN` 语句用于修改已有表上的列，包括列的数据类型和属性。若要同时重命名，可改用 [`CHANGE COLUMN`](/sql-statements/sql-statement-change-column.md) 语句。
 
-从 v5.1.0 版本起，TiDB 开始支持 Reorg 类型变更，包括但不限于：
+从 v5.1.0 起，TiDB 支持需要 Reorg-Data 的列类型变更。在执行此类变更时，TiDB 会对表中现有的所有数据进行重建，具体过程包括：读取原始表数据、按照新的列类型对数据进行转换，然后将转换后的数据重新写入表中。由于需要处理全表数据，Reorg-Data 操作通常耗时较长，其执行时间与表中的数据量成正比。
+
+以下是一些常见的需要执行 Reorg-Data 的列类型变更示例：
 
 - 从 `VARCHAR` 转换为 `BIGINT`
 - `DECIMAL` 精度修改
 - 从 `VARCHAR(10)` 到 `VARCHAR(5)` 的长度压缩
 
+从 v8.5.5 和 v9.0.0 起，TiDB 对部分原本需要 Reorg-Data 的列类型变更进行了优化。在满足以下条件时，TiDB 将不再重建表数据，仅重建受影响的索引，从而提升执行效率：
+
+- 当前会话的 [SQL 模式](/sql-mode.md) 为严格模式（`sql_mode` 包含 `STRICT_TRANS_TABLES` 或 `STRICT_ALL_TABLES`）
+- 表没有 TiFash 副本
+- 类型转换过程中不存在数据截断风险
+
+该优化仅适用于以下类型变更场景：
+
+- 整数类型之间的变更（例如，从 `BIGINT` 变更为 `INT`）
+- 字符串类型之间的变更且字符集未发生变化（例如，从 `VARCHAR(200)` 变更为 `VARCHAR(100)`）
+
+> **注意：**
+>
+> 当从 `VARCHAR` 转换为 `CHAR` 时，要求所有原数据的末尾均不包含空格；若存在不满足该条件的数据，TiDB 仍会执行 Reorg-Data，以确保转换后的数据符合 `CHAR` 类型的填充规则。
+
 ## 语法图
 
 ```ebnf+diagram
-AlterTableStmt ::=
-    'ALTER' IgnoreOptional 'TABLE' TableName ( AlterTableSpecListOpt AlterTablePartitionOpt | 'ANALYZE' 'PARTITION' PartitionNameList ( 'INDEX' IndexNameList )? AnalyzeOptionListOpt )
+AlterTableStmt
+         ::= 'ALTER' 'IGNORE'? 'TABLE' TableName ModifyColumnSpec ( ',' ModifyColumnSpec )*
 
-AlterTableSpec ::=
-    TableOptionList
-|   'SET' 'TIFLASH' 'REPLICA' LengthNum LocationLabelList
-|   'CONVERT' 'TO' CharsetKw ( CharsetName | 'DEFAULT' ) OptCollate
-|   'ADD' ( ColumnKeywordOpt IfNotExists ( ColumnDef ColumnPosition | '(' TableElementList ')' ) | Constraint | 'PARTITION' IfNotExists NoWriteToBinLogAliasOpt ( PartitionDefinitionListOpt | 'PARTITIONS' NUM ) )
-|   ( ( 'CHECK' | 'TRUNCATE' ) 'PARTITION' | ( 'OPTIMIZE' | 'REPAIR' | 'REBUILD' ) 'PARTITION' NoWriteToBinLogAliasOpt ) AllOrPartitionNameList
-|   'COALESCE' 'PARTITION' NoWriteToBinLogAliasOpt NUM
-|   'DROP' ( ColumnKeywordOpt IfExists ColumnName RestrictOrCascadeOpt | 'PRIMARY' 'KEY' | 'PARTITION' IfExists PartitionNameList | ( KeyOrIndex IfExists | 'CHECK' ) Identifier | 'FOREIGN' 'KEY' IfExists Symbol )
-|   'EXCHANGE' 'PARTITION' Identifier 'WITH' 'TABLE' TableName WithValidationOpt
-|   ( 'IMPORT' | 'DISCARD' ) ( 'PARTITION' AllOrPartitionNameList )? 'TABLESPACE'
-|   'REORGANIZE' 'PARTITION' NoWriteToBinLogAliasOpt ReorganizePartitionRuleOpt
-|   'ORDER' 'BY' AlterOrderItem ( ',' AlterOrderItem )*
-|   ( 'DISABLE' | 'ENABLE' ) 'KEYS'
-|   ( 'MODIFY' ColumnKeywordOpt IfExists | 'CHANGE' ColumnKeywordOpt IfExists ColumnName ) ColumnDef ColumnPosition
-|   'ALTER' ( ColumnKeywordOpt ColumnName ( 'SET' 'DEFAULT' ( SignedLiteral | '(' Expression ')' ) | 'DROP' 'DEFAULT' ) | 'CHECK' Identifier EnforcedOrNot | 'INDEX' Identifier IndexInvisible )
-|   'RENAME' ( ( 'COLUMN' | KeyOrIndex ) Identifier 'TO' Identifier | ( 'TO' | '='? | 'AS' ) TableName )
-|   LockClause
-|   AlgorithmClause
-|   'FORCE'
-|   ( 'WITH' | 'WITHOUT' ) 'VALIDATION'
-|   'SECONDARY_LOAD'
-|   'SECONDARY_UNLOAD'
+ModifyColumnSpec
+         ::= 'MODIFY' ColumnKeywordOpt 'IF EXISTS' ColumnName ColumnType ColumnOption* ( 'FIRST' | 'AFTER' ColumnName )?
 
-ColumnKeywordOpt ::= 'COLUMN'?
+ColumnType
+         ::= NumericType
+           | StringType
+           | DateAndTimeType
+           | 'SERIAL'
 
-ColumnDef ::=
-    ColumnName ( Type | 'SERIAL' ) ColumnOptionListOpt
+ColumnOption
+         ::= 'NOT'? 'NULL'
+           | 'AUTO_INCREMENT'
+           | 'PRIMARY'? 'KEY' ( 'CLUSTERED' | 'NONCLUSTERED' )?
+           | 'UNIQUE' 'KEY'?
+           | 'DEFAULT' DefaultValueExpr
+           | 'SERIAL' 'DEFAULT' 'VALUE'
+           | 'ON' 'UPDATE' NowSymOptionFraction
+           | 'COMMENT' stringLit
+           | ( 'CONSTRAINT' Identifier? )? 'CHECK' '(' Expression ')' ( 'NOT'? ( 'ENFORCED' | 'NULL' ) )?
+           | 'GENERATED' 'ALWAYS' 'AS' '(' Expression ')' ( 'VIRTUAL' | 'STORED' )?
+           | 'REFERENCES' TableName ( '(' IndexPartSpecificationList ')' )? Match? OnDeleteUpdateOpt
+           | 'COLLATE' CollationName
+           | 'COLUMN_FORMAT' ColumnFormat
+           | 'STORAGE' StorageMedia
+           | 'AUTO_RANDOM' ( '(' LengthNum ')' )?
 
-ColumnPosition ::=
-    ( 'FIRST' | 'AFTER' ColumnName )?
+ColumnName ::=
+    Identifier ( '.' Identifier ( '.' Identifier )? )?
+
+DefaultValueExpr ::=
+    NowSymOptionFractionParentheses
+|   SignedLiteral
+|   NextValueForSequenceParentheses
+|   BuiltinFunction
+|   '(' SignedLiteral ')'
 ```
 
 ## 示例
@@ -90,15 +112,15 @@ Query OK, 0 rows affected (0.09 sec)
 {{< copyable "sql" >}}
 
 ```sql
-SHOW CREATE TABLE t1\G;
+SHOW CREATE TABLE t1\G
 ```
 
 ```sql
 *************************** 1. row ***************************
        Table: t1
 Create Table: CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `col1` bigint(20) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `col1` bigint DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001
 1 row in set (0.00 sec)
@@ -140,14 +162,14 @@ Query OK, 0 rows affected (2.52 sec)
 {{< copyable "sql" >}}
 
 ```sql
-SHOW CREATE TABLE t1\G;
+SHOW CREATE TABLE t1\G
 ```
 
 ```sql
 *************************** 1. row ***************************
        Table: t1
 CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `col1` varchar(5) DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin AUTO_INCREMENT=30001
@@ -163,7 +185,7 @@ CREATE TABLE `t1` (
 >   ERROR 1406 (22001): Data Too Long, field len 4, data len 5
 >   ```
 >
-> - 由于和 Async Commit 功能兼容，DDL 在开始进入到 Reorg Data 前会有一定时间（约 2.5s）的等待处理：
+> - 由于和 Async Commit 功能兼容，在关闭[元数据锁](/metadata-lock.md)的情况下，DDL 在开始进入到 Reorg-Data 前会有一定时间（约 2.5 秒）的等待处理：
 >
 >   ```
 >   Query OK, 0 rows affected (2.52 sec)
@@ -171,18 +193,17 @@ CREATE TABLE `t1` (
 
 ## MySQL 兼容性
 
-* 不支持使用单个 `ALTER TABLE` 语句修改多个列，例如：
-
-    ```sql
-    ALTER TABLE t1 MODIFY col1 BIGINT, MODIFY id BIGINT NOT NULL;
-    ERROR 1105 (HY000): Unsupported multi schema change
-    ```
-  
 * 不支持修改主键列上需要 Reorg-Data 的类型，但是支持修改 Meta-Only 的类型。例如：
-  
+
     ```sql
     CREATE TABLE t (a int primary key);
     ALTER TABLE t MODIFY COLUMN a VARCHAR(10);
+    ERROR 8200 (HY000): Unsupported modify column: column has primary key flag
+    ```
+
+    ```sql
+    CREATE TABLE t (a int primary key);
+    ALTER TABLE t MODIFY COLUMN a int UNSIGNED;
     ERROR 8200 (HY000): Unsupported modify column: column has primary key flag
     ```
 
@@ -208,8 +229,8 @@ CREATE TABLE `t1` (
     ERROR 8200 (HY000): Unsupported modify column: table is partition table
     ```
 
-* 不支持部分数据类型（例如，部分时间类型、Bit、Set、Enum、JSON 等）的变更，因为 TiDB cast 函数与 MySQL 的行为有一些兼容性问题。例如：
-  
+* 不支持部分数据类型（例如，部分 TIME 类型、BIT、SET、ENUM、JSON 等）向某些类型的变更，因为 TiDB 的 `CAST` 函数与 MySQL 的行为有一些兼容性问题。例如：
+
     ```sql
     CREATE TABLE t (a DECIMAL(13, 7));
     ALTER TABLE t MODIFY COLUMN a DATETIME;

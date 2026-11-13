@@ -1,129 +1,146 @@
 ---
 title: sync-diff-inspector 用户文档
 aliases: ['/docs-cn/dev/sync-diff-inspector/sync-diff-inspector-overview/','/docs-cn/dev/reference/tools/sync-diff-inspector/overview/']
+summary: sync-diff-inspector 是一个用于校验 MySQL/TiDB 中数据一致性的工具，提供修复数据的功能。它支持对比表结构和数据，生成用于修复数据的 SQL 语句。需要注意的是，在校验数据时会消耗一定的服务器资源，需要避免在业务高峰期间校验。生成的 SQL 文件仅作为修复数据的参考，需要确认后再执行这些 SQL 修复数据。
 ---
 
 # sync-diff-inspector 用户文档
 
-[sync-diff-inspector](https://github.com/pingcap/tidb-tools/tree/master/sync_diff_inspector) 是一个用于校验 MySQL／TiDB 中两份数据是否一致的工具。该工具提供了修复数据的功能（适用于修复少量不一致的数据）。
+[sync-diff-inspector](https://github.com/pingcap/tiflow/tree/master/sync_diff_inspector) 是一个用于校验兼容 MySQL 的数据库（包括 MySQL 和 TiDB）之间数据一致性的工具。例如，它可以比较 MySQL 和 TiDB 中的数据、MySQL 和 MySQL 中的数据，或者 TiDB 和 TiDB 中的数据。此外，在少量数据不一致的场景下，你还可以使用该工具修复数据。
 
-主要功能：
+本文介绍 sync-diff-inspector 的主要功能，并说明如何配置以及使用该工具。
+
+## 主要功能
 
 * 对比表结构和数据
 * 如果数据不一致，则生成用于修复数据的 SQL 语句
 * 支持[不同库名或表名的数据校验](/sync-diff-inspector/route-diff.md)
 * 支持[分库分表场景下的数据校验](/sync-diff-inspector/shard-diff.md)
-* 支持 [TiDB 主从集群的数据校验](/sync-diff-inspector/upstream-downstream-diff.md)
+* 支持 [TiDB 主从集群的数据校验](/ticdc/ticdc-upstream-downstream-check.md)
 * 支持[从 TiDB DM 拉取配置的数据校验](/sync-diff-inspector/dm-diff.md)
 
-你可通过以下方式下载 sync-diff-inspector：
+## 安装 sync-diff-inspector
 
-+ Binary 包。点击 [tidb-enterprise-tools-nightly-linux-amd64](https://download.pingcap.org/tidb-enterprise-tools-nightly-linux-amd64.tar.gz) 进行下载。
-+ Docker 镜像。执行以下命令进行下载：
+sync-diff-inspector 的安装方法取决于 TiDB 版本。
 
-    {{< copyable "shell-regular" >}}
+对于 TiDB v8.5.6 及以上版本，你可通过以下方式下载 sync-diff-inspector：
+
++ 使用 TiUP 安装：
 
     ```shell
-    docker pull pingcap/tidb-enterprise-tools
+    tiup install sync-diff-inspector
+    ```
+
++ 下载 Binary 包。sync-diff-inspector 的安装包位于 TiDB 离线工具包中。下载方式，请参考 [TiDB 工具下载](/download-ecosystem-tools.md)。
+
++ 使用 Docker 镜像。执行以下命令进行下载：
+
+    ```shell
+    docker pull pingcap/sync-diff-inspector:latest
+    ```
+
+对于 TiDB v8.5.6 之前的版本，你可通过以下方式下载 sync-diff-inspector：
+
++ 下载来自 [`tidb-tools`](https://github.com/pingcap/tidb-tools) 仓库的 Binary 包。sync-diff-inspector 的安装包位于 TiDB 离线工具包中。下载方式，请参考 [TiDB 工具下载](/download-ecosystem-tools.md)。
+
++ 使用 Docker 镜像。执行以下命令进行下载：
+
+    ```shell
+    docker pull pingcap/tidb-tools:latest
     ```
 
 ## sync-diff-inspector 的使用限制
 
 * 对于 MySQL 和 TiDB 之间的数据同步不支持在线校验，需要保证上下游校验的表中没有数据写入，或者保证某个范围内的数据不再变更，通过配置 `range` 来校验这个范围内的数据。
 
-* 不支持 JSON、BIT、BINARY、BLOB 等类型的数据，在校验时需要设置 `ignore-columns` 忽略检查这些类型的数据。
+* 数据类型支持说明：
 
-* FLOAT、DOUBLE 等浮点数类型在 TiDB 和 MySQL 中的实现方式不同，在计算 checksum 时会分别取 6 位和 15 位有效数字。如果不使用该特性，需要设置 `ignore-columns` 忽略这些列的检查。
+    * **FLOAT/DOUBLE**：TiDB 与 MySQL 对浮点类型的实现存在差异。计算校验和时，`FLOAT` 和 `DOUBLE` 分别采用 6 位和 15 位有效数字。如果不希望使用该特性，可以通过设置 `ignore-columns` 跳过这些列的检查。
+    * **JSON**：支持比较。需要注意的是，上下游之间 `JSON` 字符串值的排序规则 (collation) 和字符集差异可能导致误报数据不一致。
+    * **BLOB/VARBINARY**：支持比较，按二进制数据逐字节进行校验。
+    * **BIT**：支持 MySQL 与 TiDB 之间的数据比较。已验证支持位宽为 1、8、16 和 64 的 `BIT` 类型。如果你的表结构使用了非标准位宽，或应用层对数据进行了转换，建议先进行针对性的验证测试。
 
 * 支持对不包含主键或者唯一索引的表进行校验，但是如果数据不一致，生成的用于修复的 SQL 可能无法正确修复数据。
 
 ## sync-diff-inspector 所需的数据库权限
 
-sync-diff-inspector 需要获取表结构信息、查询数据，需要的数据库权限如下：
+sync-diff-inspector 需要具备特定的数据库权限以获取表结构信息、查询数据。你需要在上游数据库和下游数据库中授予以下权限：
 
-- 上游数据库
+- `SELECT`：用于对比数据。
+- `RELOAD`：用于查看表结构。
+- `PROCESS`：当上下游都是 TiDB 时需要该权限，用于查询 `INFORMATION_SCHEMA.CLUSTER_INFO` 表。
 
-    - SELECT（查数据进行对比）
-
-    - SHOW_DATABASES（查看库名）
-
-    - RELOAD（查看表结构）
-
-- 下游数据库
-
-    - SELECT（查数据进行对比）
-
-    - SHOW_DATABASES（查看库名）
-
-    - RELOAD（查看表结构）
+> **注意：**
+>
+> - **请勿**在所有数据库 (`*.*`) 上授予 [`SHOW DATABASES`](/sql-statements/sql-statement-show-databases.md) 权限。否则，sync-diff-inspector 会尝试访问无权限的数据库，导致报错。
+> - 对于 MySQL 数据源，请确保系统变量 [`skip_show_database`](https://dev.mysql.com/doc/refman/8.4/en/server-system-variables.html#sysvar_skip_show_database) 设置为 `OFF`。如果该变量设置为 `ON`，检查可能会失败。
 
 ## 配置文件说明
 
 sync-diff-inspector 的配置总共分为五个部分：
 
-- Global config: 通用配置，包括校验的线程数量、是否输出修复 SQL 、是否比对数据等。
-- Datasource config: 配置上下游数据库实例。
-- Table config: 对具体表的特殊配置，例如指定范围、忽略的列等等。（可选）
-- Routes: 上游多表名通过正则匹配下游单表名的规则。（可选）
-- Task config: 配置校验哪些表，如果有的表在上下游有一定的映射关系或者有一些特殊要求，则需要对指定的表进行配置。
+- Global config：通用配置，包括校验的线程数量、是否输出修复 SQL、是否比对数据、是否跳过校验上游或下游不存在的表等。
+- Datasource config：配置上下游数据库实例。
+- Routes：上游多表名通过正则匹配下游单表名的规则。**（可选）**
+- Task config：配置校验哪些表，如果有的表在上下游有一定的映射关系或者有一些特殊要求，则需要对指定的表进行配置。
+- Table config：对具体表的特殊配置，例如指定范围、忽略的列等等。**（可选）**
 
 下面是一个完整配置文件的说明：
+
+- 提示：配置名后带 `s` 的配置项允许拥有多个配置值，因此需要使用方括号 `[]` 来包含配置值。
 
 ```toml
 # Diff Configuration.
 
 ######################### Global config #########################
 
-# 检查数据的线程数量，上下游数据库的连接数会略大于该值
+# 检查数据的线程数量，上下游数据库的连接数会略大于该值。
 check-thread-count = 4
 
 # 如果开启，若表存在不一致，则输出用于修复的 SQL 语句。
 export-fix-sql = true
 
-# 只对比表结构而不对比数据
+# 只对比数据而不对比表结构，该配置项目前为实验特性，不建议在生产环境中使用。
+check-data-only = false
+
+# 只对比表结构而不对比数据。
 check-struct-only = false
 
+# 如果开启，会跳过校验上游或下游不存在的表。
+skip-non-existing-table = false
 
 ######################### Datasource config #########################
 [data-sources]
-[data-sources.mysql1] # mysql1 是该数据库实例唯一标识的 id，用于下面 task.source-instances/task.target-instance 中
+[data-sources.mysql1] # mysql1 是该数据库实例唯一标识的自定义 id，用于下面 task.source-instances/task.target-instance 中
     host = "127.0.0.1"
     port = 3306
     user = "root"
-    password = ""
+    password = "" # 设置连接上游数据库的密码，可为明文或 Base64 编码。
+
+    #（可选）使用映射规则来匹配上游多个分表，其中 rule1 和 rule2 在下面 Routes 配置栏中定义
+    route-rules = ["rule1", "rule2"]
 
 [data-sources.tidb0]
     host = "127.0.0.1"
     port = 4000
     user = "root"
-    password = ""
-    # 使用 TiDB 的 snapshot 功能，如果开启的话会使用历史数据进行对比
-    # snapshot = "386902609362944000"
+    password = "" # 设置连接下游数据库的密码，可为明文或 Base64 编码。
 
-######################### Table config #########################
-# 对部分表进行特殊的配置，配置的表必须包含在 task.target-check-tables 中
-[table-configs.config1] # config1 是该配置的唯一标识 id，用于下面 task.target-configs 中
-# 目标数据库名称
-schema = "schama1"
-# 目标表名称
-table = "table"
-# 指定检查的数据的范围，需要符合 sql 中 where 条件的语法
-range = "age > 10 AND age < 20"
-# 指定用于划分 chunk 的列，使用逗号分割，如果不配置该项，sync-diff-inspector 会选取一些合适的列（主键／唯一键／索引）
-index-fields = "col1,col2"
-# 忽略某些列的检查，例如 sync-diff-inspector 目前还不支持的一些类型（json，bit，blob 等），
-# 或者是浮点类型数据在 TiDB 和 MySQL 中的表现可能存在差异，可以使用 ignore-columns 忽略检查这些列
-ignore-columns = ["",""]
-# 指定划分该表的 chunk 的大小，若不指定可以删去或者将其配置为 0。
-chunk-size = 0
-# 指定该表的 collation，若不指定可以删去或者将其配置为空字符串。
-collation = ""
+    #（可选）使用 TLS 连接 TiDB
+    # security.ca-path = ".../ca.crt"
+    # security.cert-path = ".../cert.crt"
+    # security.key-path = ".../key.crt"
+
+    #（可选）使用 TiDB 的 snapshot 功能，如果开启的话会使用历史数据进行对比
+    # snapshot = "386902609362944000"
+    # 当 snapshot 设置为 "auto" 时，使用 TiCDC 在上下游的同步时间点，具体参考 <https://github.com/pingcap/tidb-tools/issues/663>
+    # snapshot = "auto"
 
 ########################### Routes ###########################
 # 如果需要对比大量的不同库名或者表名的表的数据，或者用于校验上游多个分表与下游总表的数据，可以通过 table-rule 来设置映射关系
 # 可以只配置 schema 或者 table 的映射关系，也可以都配置
 [routes]
-[routes.rule1]
+[routes.rule1] # rule1 是该配置的唯一标识的自定义 id，用于上面 data-sources.route-rules 中
 schema-pattern = "test_*"      # 匹配数据源的库名，支持通配符 "*" 和 "?"
 table-pattern = "t_*"          # 匹配数据源的表名，支持通配符 "*" 和 "?"
 target-schema = "test"         # 目标库名
@@ -139,10 +156,10 @@ target-table = "t2" # 目标表名
 # 配置需要对比的*目标数据库*中的表
 [task]
     # output-dir 会保存如下信息
-    # 1 sql: 检查出错误后生成的修复 SQL 文件，并且一个 chunk 对应一个文件
-    # 2 log: sync-diff.log 保存日志信息
-    # 3 summary: summary.txt 保存总结
-    # 4 checkpoint: a dir 保存断点续传信息
+    # 1 sql：检查出错误后生成的修复 SQL 文件，并且一个 chunk 对应一个文件
+    # 2 log：sync-diff.log 保存日志信息
+    # 3 summary：summary.txt 保存总结
+    # 4 checkpoint：a dir 保存断点续传信息
     output-dir = "./output"
 
     # 上游数据库，内容是 data-sources 声明的唯一标识 id
@@ -155,8 +172,25 @@ target-table = "t2" # 目标表名
     # 使用 ? 来匹配任意一个字符；使用 * 来匹配任意；详细匹配规则参考 golang regexp pkg: https://github.com/google/re2/wiki/Syntax
     target-check-tables = ["schema*.table*", "!c.*", "test2.t2"]
 
-    # 对部分表的额外配置
-    target-configs= ["config1"]
+    #（可选）对部分表的额外配置，其中 config1 在下面 Table config 配置栏中定义
+    target-configs = ["config1"]
+
+######################### Table config #########################
+# 对部分表进行特殊的配置，配置的表必须包含在 task.target-check-tables 中
+[table-configs.config1] # config1 是该配置的唯一标识自定义 id，用于上面 task.target-configs 中
+# 目标表名称，可以使用正则来匹配多个表，但不允许存在一个表同时被多个特殊配置匹配。
+target-tables = ["schema*.test*", "test2.t2"]
+#（可选）指定检查的数据的范围，需要符合 sql 中 where 条件的语法
+range = "age > 10 AND age < 20"
+#（可选）指定用于划分 chunk 的列，如果不配置该项，sync-diff-inspector 会选取一些合适的列（主键／唯一键／索引）
+index-fields = ["col1","col2"]
+#（可选）忽略你希望排除的数据列，不参与一致性校验。
+# 例如，已知在不同实现之间存在差异的列（如浮点类型），或者希望单独验证的列。
+ignore-columns = ["",""]
+#（可选）指定划分该表的 chunk 的大小，若不指定可以删去或者将其配置为 0。
+chunk-size = 0
+#（可选）指定该表的 collation，若不指定可以删去或者将其配置为空字符串。
+collation = ""
 ```
 
 ## 运行 sync-diff-inspector
@@ -166,7 +200,7 @@ target-table = "t2" # 目标表名
 {{< copyable "shell-regular" >}}
 
 ```bash
-./bin/sync_diff_inspector --config=./config.toml
+./sync_diff_inspector --config=./config.toml
 ```
 
 该命令最终会在 `config.toml` 中的 `output-dir` 输出目录输出本次比对的检查报告 `summary.txt` 和日志 `sync_diff.log`。在输出目录下还会生成由 `config.toml` 文件内容哈希值命名的文件夹，该文件夹下包括断点续传 checkpoint 结点信息以及数据存在不一致时生成的 SQL 修复数据。
@@ -177,9 +211,9 @@ sync-diff-inspector 在执行过程中会往 `stdout` 发送进度信息。进�
 
 > **注意：**
 >
-> 为了达成显示效果，请保持显示窗口宽度在80字符以上。
+> 为了达成显示效果，请保持显示窗口宽度在 80 字符以上。
 
-```progress
+```
 A total of 2 tables need to be compared
 
 Comparing the table structure of ``sbtest`.`sbtest96`` ... equivalent
@@ -190,7 +224,7 @@ _____________________________________________________________________________
 Progress [==========================================================>--] 98% 193/200
 ```
 
-```progress
+```
 A total of 2 tables need to be compared
 
 Comparing the table structure of ``sbtest`.`sbtest96`` ... equivalent
@@ -203,9 +237,11 @@ The data of `sbtest`.`sbtest99` is not equal
 The data of `sbtest`.`sbtest96` is not equal
 
 The rest of tables are all equal.
-The patch file has been generated in 
+
+A total of 2 tables have been compared, 0 tables finished, 2 tables failed, 0 tables skipped.
+The patch file has been generated in
         'output/fix-on-tidb2/'
-You can view the comparision details through 'output/sync_diff.log'
+You can view the comparison details through 'output/sync_diff.log'
 ```
 
 ### 输出文件
@@ -234,32 +270,34 @@ sync-diff-inspector 的日志存放在 `${output}/sync_diff.log` 中，其中 `$
 
 #### 校验进度
 
-sync-diff-inspector 会在运行时定期（间隔 10s）输出校验进度到checkpoint中(位于 `${output}/checkpoint/sync_diff_checkpoints.pb` 中，其中 `${output}` 是 `config.toml` 文件中 `output-dir` 的值。
+sync-diff-inspector 会在运行时定期（间隔 10s）输出校验进度到 checkpoint 中（位于 `${output}/checkpoint/sync_diff_checkpoints.pb`），其中 `${output}` 是 `config.toml` 文件中 `output-dir` 的值。
 
 #### 校验结果
 
 当校验结束时，sync-diff-inspector 会输出一份校验报告，位于 `${output}/summary.txt` 中，其中 `${output}` 是 `config.toml` 文件中 `output-dir` 的值。
 
-```summary
-+---------------------+--------------------+----------------+
-|        TABLE        | STRUCTURE EQUALITY | DATA DIFF ROWS |
-+---------------------+--------------------+----------------+
-| `sbtest`.`sbtest99` | true               | +97/-97        |
-| `sbtest`.`sbtest96` | true               | +0/-101        |
-+---------------------+--------------------+----------------+
+```
++---------------------+---------+--------------------+----------------+---------+-----------+
+|        TABLE        | RESULT  | STRUCTURE EQUALITY | DATA DIFF ROWS | UPCOUNT | DOWNCOUNT |
++---------------------+---------+--------------------+----------------+---------+-----------+
+| `sbtest`.`sbtest99` | succeed | true               | +97/-97        |  999999 |    999999 |
+| `sbtest`.`sbtest96` | succeed | true               | +0/-101        |  999999 |   1000100 |
+| `sbtest`.`sbtest97` | skipped | false              | +999999/-0     |  999999 |         0 |
++---------------------+---------+--------------------+----------------+---------+-----------+
 Time Cost: 16.75370462s
 Average Speed: 113.277149MB/s
 ```
 
-- TABLE: 该列表示对应的数据库及表名
-
-- STRUCTURE EQUALITY: 表结构是否相同
-
-- DATA DIFF ROWS: 即 `rowAdd` / `rowDelete` ，表示该表修复需要增加/删除的行数
+- `TABLE`：该列表示对应的数据库及表名
+- `RESULT`：校验是否完成。如果设置了 `skip-non-existing-table = true`，对于上游或下游不存在的表，该列的值将为 `skipped`
+- `STRUCTURE EQUALITY`：表结构是否相同
+- `DATA DIFF ROWS`：即 `rowAdd`/`rowDelete`，表示该表修复需要增加/删除的行数
+- `UPCOUNT`：表示该表在上游数据源的行数
+- `DOWNCOUNT`：表示该表在下游数据源的行数
 
 #### SQL 修复
 
-校验过程中遇到不同的行，会生成修复数据的 SQL 语句。一个chunk如果出现数据不一致，就会生成一个以 `chunk.Index` 命名的 SQL 文件。文件位于 `${output}/fix-on-${instance}` 文件夹下。其中 `${instance}` 为 `config.toml` 中 `task.target-instance` 的值。
+校验过程中遇到不同的行，会生成修复数据的 SQL 语句。一个 chunk 如果出现数据不一致，就会生成一个以 `chunk.Index` 命名的 SQL 文件。文件位于 `${output}/fix-on-${instance}` 文件夹下。其中 `${instance}` 为 `config.toml` 中 `task.target-instance` 的值。
 
 一个 SQL 文件会包含该 chunk 的所属表以及表示的范围信息。对每个修复 SQL 语句，有三种情况：
 
@@ -267,15 +305,13 @@ Average Speed: 113.277149MB/s
 - 下游数据库冗余行，则是 DELETE 语句
 - 下游数据库行部分数据不一致，则是 REPLACE 语句，但会在 SQL 文件中通过注释的方法标明不同的列
 
-```SQL
+```sql
 -- table: sbtest.sbtest99
 -- range in sequence: (3690708) < (id) <= (3720581)
 /*
-  DIFF COLUMNS ╏   `K`   ╏                `C`                 ╏               `PAD`       
+  DIFF COLUMNS ╏   `K`   ╏                `C`                 ╏               `PAD`
 ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
-  source data  ╏ 2501808 ╏ 'hello'                            ╏ 'world'                
-╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
-  target data  ╏ 5003616 ╏ '0709824117-9809973320-4456050422' ╏ '1714066100-7057807621-1425865505'  
+  source data  ╏ 2501808 ╏ 'hello'                            ╏ 'world'
 ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╋╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍
 */
 REPLACE INTO `sbtest`.`sbtest99`(`id`,`k`,`c`,`pad`) VALUES (3700000,2501808,'hello','world');
@@ -284,7 +320,20 @@ REPLACE INTO `sbtest`.`sbtest99`(`id`,`k`,`c`,`pad`) VALUES (3700000,2501808,'he
 ## 注意事项
 
 * sync-diff-inspector 在校验数据时会消耗一定的服务器资源，需要避免在业务高峰期间校验。
-* TiDB 使用的 collation 为 `utf8_bin`。如果对 MySQL 和 TiDB 的数据进行对比，需要注意 MySQL 中表的 collation 设置。如果表的主键／唯一键为 varchar 类型，且 MySQL 中 collation 设置与 TiDB 不同，可能会因为排序问题导致最终校验结果不正确，需要在 sync-diff-inspector 的配置文件中增加 collation 设置。
+* 在比较 MySQL 与 TiDB 之间的数据之前，请先确认表的字符集和 `collation` 配置一致。这一点对于包含 UTF-8 数据的 `VARCHAR`、`TEXT` 或 `JSON` 列尤为重要，尤其是这些列属于主键或唯一键时。MySQL 8.0 默认使用 `utf8mb4_0900_ai_ci`（大小写不敏感、重音不敏感），而 TiDB 通常使用 `utf8mb4_bin`（二进制、大小写敏感）。这种差异可能导致 sync-diff-inspector 将内容完全相同的 UTF-8 字符串或 JSON 字符串值误判为不一致。为避免误报，建议上下游表使用相同的排序规则（例如 `utf8mb4_bin`），或者通过 `ignore-columns` 排除受影响的 UTF-8 文本列和 JSON 列。
+* 如果你在 sync-diff-inspector 配置文件中设置了 `collation`，并在基于 Chunk 的比较过程中显式指定上下游使用相同的排序规则，需要注意：索引字段的排序顺序取决于表本身的 `collation` 配置。如果上下游的排序规则不同，其中一侧可能无法使用索引。此外，如果上下游字符集不同（例如 MySQL 使用 `utf8`，而 TiDB 使用 `utf8mb4`），则无法统一 `collation` 配置。
+* 即使数据在逻辑上完全一致，以下场景仍可能导致误报数据差异：
+    * 上下游 VARCHAR 或 TEXT 列使用不同的排序规则（例如 `utf8mb4_0900_ai_ci` 与 `utf8mb4_bin`），相同的字符串值也可能被判定为不同。
+    * 包含字符串值的 JSON 列同样会受到排序规则差异的影响。
+    * 自动填充的 TIMESTAMP 列（例如使用 `DEFAULT CURRENT_TIMESTAMP` 或 `ON UPDATE CURRENT_TIMESTAMP`）在不同时间导入数据，或比较存在轻微时间差的数据时，可能产生无意义的差异。
+* 如果待校验的数据集包含自动填充的 TIMESTAMP 列，建议在构造验证数据时使用固定的 TIMESTAMP 值，而不要依赖 `DEFAULT CURRENT_TIMESTAMP`。如果这些列的精确值并非验证重点，也可以通过 `ignore-columns` 将其排除，以减少误报。
+* 如果上下游表的主键不一致，例如在 MySQL 中进行分表后合并到 TiDB，并使用原主键和分片键组成复合主键的场景，sync-diff-inspector 将不会使用原主键列来划分 chunk。此时，你需要通过 `index-fields` 配置原主键列，并将 `check-data-only` 设置为 `true`。
 * sync-diff-inspector 会优先使用 TiDB 的统计信息来划分 chunk，需要尽量保证统计信息精确，可以在**业务空闲期**手动执行 `analyze table {table_name}`。
-* table-rule 的规则需要特殊注意，例如设置了 `schema-pattern="test1"`，table-pattern = "t_1"，`target-schema="test2"`，target-table = "t_2"，会对比 source 中的表 `test1`.`t_1` 和 target 中的表 `test2`.`t_2`。sync-diff-inspector 默认开启 sharding，如果 source 中还有表 `test2`.`t_2`，则会把 source 端的表 `test1`.`t_1` 和表 `test2`.`t_2` 作为 sharding 与 target 中的表 `test2`.`t_2` 进行一致性校验。
+* table-rule 的规则需要特殊注意，例如设置了 `schema-pattern="test1"`，`table-pattern = "t_1"`，`target-schema="test2"`，`target-table = "t_2"`，会对比 source 中的表 `test1`.`t_1` 和 target 中的表 `test2`.`t_2`。sync-diff-inspector 默认开启 sharding，如果 source 中还有表 `test2`.`t_2`，则会把 source 端的表 `test1`.`t_1` 和表 `test2`.`t_2` 作为 sharding 与 target 中的表 `test2`.`t_2` 进行一致性校验。
 * 生成的 SQL 文件仅作为修复数据的参考，需要确认后再执行这些 SQL 修复数据。
+
+## 相关资源
+
+<RelatedResources>
+  <ResourceCard title="管理 TiDB 实验 9: 使用 sync-diff-inspector 进行数据检查" type="lab" link="https://labs.pingcap.com/labs/dba_303_lab_ff8" imgSrc="https://lab-static.pingcap.com/quick-demo/dba_303_ch10_en.png" duration="60 分钟" />
+</RelatedResources>

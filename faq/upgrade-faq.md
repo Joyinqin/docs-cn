@@ -14,15 +14,33 @@ aliases: ['/docs-cn/dev/faq/upgrade-faq/','/docs-cn/dev/faq/upgrade/']
 
 ### 滚动升级有那些影响？
 
-滚动升级 TiDB 服务，滚动升级期间不影响业务运行。需要配置最小集群拓扑 (TiDB \* 2、PD \* 3、TiKV \* 3)，如果集群环境中有 Pump 和 Drainer 服务，建议先停止 Drainer，然后滚动升级（升级 TiDB 时会升级 Pump）。
+滚动升级 TiDB 期间，业务运行会受到一定影响。因此，不建议在业务高峰期进行滚动升级。需要配置最小集群拓扑 (TiDB \* 2、PD \* 3、TiKV \* 3)。
+
+### 集群在执行 DDL 请求期间可以进行升级操作吗？
+
+* 如果升级前 TiDB 的版本低于 v7.1.0：
+
+    * 集群中有 DDL 语句正在被执行时（通常为 `ADD INDEX` 和列类型变更等耗时较久的 DDL 语句），**请勿进行**升级操作。在升级前，建议使用 [`ADMIN SHOW DDL`](/sql-statements/sql-statement-admin-show-ddl.md) 命令查看集群中是否有正在进行的 DDL Job。如需升级，请等待 DDL 执行完成或使用 [`ADMIN CANCEL DDL`](/sql-statements/sql-statement-admin-cancel-ddl.md) 命令取消该 DDL Job 后再进行升级。
+
+    * 在升级 TiDB 集群的过程中，**请勿执行** DDL 语句，否则可能会出现行为未定义的问题。
+
+* 如果升级前 TiDB 的版本为 v7.1.0 或更高的版本：
+
+    * 不用遵循限制低版本升级时的限制，即在升级时可以接收用户 DDL 任务。建议参考[平滑升级 TiDB](/smooth-upgrade-tidb.md)。
 
 ### Binary 如何升级？
 
-Binary 不是建议的安装方式，对升级支持也不友好，建议换成 [TiUP 部署](/production-deployment-using-tiup.md)。
+不推荐使用 Binary 来升级集群。建议[使用 TiUP 升级 TiDB](/upgrade-tidb-using-tiup.md) 进行升级，确保分布式系统版本一致性和兼容性。
 
 ## 升级后常见问题
 
 本小节列出了一些升级后可能会遇到的问题与解决办法。
+
+### TiDB 升级后 JDBC 连接的排序规则变化问题
+
+当从较低版本升级到 v7.4 或更高版本时，如果 JDBC URL 中未配置 `connectionCollation`，且 `characterEncoding` 未配置或配置为 `UTF-8`，升级后 JDBC 连接的默认排序规则可能会从 `utf8mb4_bin` 变更为 `utf8mb4_0900_ai_ci`。如需保持排序规则为 `utf8mb4_bin`，请在 JDBC URL 中配置 `connectionCollation=utf8mb4_bin`。
+
+更多信息，请参考 [JDBC 连接所使用的排序规则](/faq/sql-faq.md#jdbc-连接所使用的排序规则)。
 
 ### 执行 DDL 操作时遇到的字符集 (charset) 问题
 

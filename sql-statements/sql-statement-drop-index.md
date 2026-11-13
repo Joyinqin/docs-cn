@@ -11,23 +11,14 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-drop-index/','/docs-cn/dev/
 ## 语法图
 
 ```ebnf+diagram
-AlterTableDropIndexStmt ::=
-    'ALTER' IgnoreOptional 'TABLE' AlterTableDropIndexSpec
+DropIndexStmt ::=
+    "DROP" "INDEX" IfExists Identifier "ON" TableName IndexLockAndAlgorithmOpt
 
-IgnoreOptional ::=
-    'IGNORE'?
+IfExists ::=
+    ( 'IF' 'EXISTS' )?
 
-TableName ::=
-    Identifier ('.' Identifier)?
-
-AlterTableDropIndexSpec ::=
-    'DROP' ( KeyOrIndex | 'FOREIGN' 'KEY' ) IfExists Identifier
-
-KeyOrIndex ::=
-    'KEY'
-|   'INDEX'
-
-IfExists ::= ( 'IF' 'EXISTS' )?
+IndexLockAndAlgorithmOpt ::=
+    ( LockClause AlgorithmClause? | AlgorithmClause LockClause? )?
 ```
 
 ## 示例
@@ -99,7 +90,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 3;
 {{< copyable "sql" >}}
 
 ```sql
-ALTER TABLE t1 DROP INDEX c1;
+DROP INDEX c1 ON t1;
 ```
 
 ```
@@ -112,7 +103,7 @@ Query OK, 0 rows affected (0.30 sec)
 
 ## 另请参阅
 
-* [SHOW INDEX](/sql-statements/sql-statement-show-index.md)
+* [SHOW INDEXES](/sql-statements/sql-statement-show-indexes.md)
 * [CREATE INDEX](/sql-statements/sql-statement-create-index.md)
 * [ADD INDEX](/sql-statements/sql-statement-add-index.md)
 * [RENAME INDEX](/sql-statements/sql-statement-rename-index.md)

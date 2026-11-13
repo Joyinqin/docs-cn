@@ -1,6 +1,7 @@
 ---
 title: TiDB 热点问题处理
 aliases: ['/docs-cn/dev/troubleshoot-hot-spot-issues/']
+summary: TiDB 热点问题处理：介绍定位和解决读写热点问题，包括常见热点场景、确定存在热点问题的方法、使用 TiDB Dashboard 定位热点表、使用 SHARD_ROW_ID_BITS 处理热点表、使用 AUTO_RANDOM 处理自增主键热点表、小表热点的优化、打散读热点。
 ---
 
 # TiDB 热点问题处理
@@ -20,7 +21,7 @@ TiDB 对每个表分配一个 TableID，每一个索引都会分配一个 IndexI
 每行数据按照如下规则进行编码成 Key-Value pair：
 
 ```text
-Key: tablePrefix{tableID}_recordPrefixSep{rowID}
+Key: tablePrefix{TableID}_recordPrefixSep{RowID}
 Value: [col1, col2, col3, col4]
 ```
 
@@ -29,14 +30,14 @@ Value: [col1, col2, col3, col4]
 对于 Index 数据，会按照如下规则编码成 Key-Value pair：
 
 ```text
-Key: tablePrefix{tableID}_indexPrefixSep{indexID}_indexedColumnsValue
+Key: tablePrefix{TableID}_indexPrefixSep{IndexID}_indexedColumnsValue
 Value: rowID
 ```
 
-Index 数据还需要考虑 Unique Index 和非 Unique Index 两种情况，对于 Unique Index，可以按照上述编码规则。但是对于非 Unique Index，通过这种编码并不能构造出唯一的 Key，因为同一个 Index 的 `tablePrefix{tableID}_indexPrefixSep{indexID}` 都一样，可能有多行数据的 `ColumnsValue` 是一样的，所以对于非 Unique Index 的编码做了一点调整：
+Index 数据还需要考虑 Unique Index 和非 Unique Index 两种情况，对于 Unique Index，可以按照上述编码规则。但是对于非 Unique Index，通过这种编码并不能构造出唯一的 Key，因为同一个 Index 的 `tablePrefix{TableID}_indexPrefixSep{IndexID}` 都一样，可能有多行数据的 `ColumnsValue` 是一样的，所以对于非 Unique Index 的编码做了一点调整：
 
 ```text
-Key: tablePrefix{tableID}_indexPrefixSep{indexID}_indexedColumnsValue_rowID
+Key: tablePrefix{TableID}_indexPrefixSep{IndexID}_indexedColumnsValue_rowID
 Value: null
 ```
 
@@ -44,9 +45,11 @@ Value: null
 
 从 TiDB 编码规则可知，同一个表的数据会在以表 ID 开头为前缀的一个 range 中，数据的顺序按照 RowID 的值顺序排列。在表 insert 的过程中如果 RowID 的值是递增的，则插入的行只能在末端追加。当 Region 达到一定的大小之后会进行分裂，分裂之后还是只能在 range 范围的末端追加，永远只能在一个 Region 上进行 insert 操作，形成热点。
 
-常见的 increment 类型自增主键就是顺序递增的，默认情况下，在主键为整数型时，会用主键值当做 RowID ，此时 RowID 为顺序递增，在大量 insert 时形成表的写入热点。
+常见的 increment 类型自增主键就是顺序递增的，默认情况下，在主键为整数型时，会用主键值当做 RowID，此时 RowID 为顺序递增，在大量 insert 时形成表的写入热点。
 
 同时，TiDB 中 RowID 默认也按照自增的方式顺序递增，主键不为整数类型时，同样会遇到写入热点的问题。
+
+此外，当写入或读取数据存在热点时，即出现新建表或分区的写入热点问题和只读场景下周期性读热点问题时，你可以使用表属性控制 Region 合并。具体的热点场景描述和解决方法可以查看[使用表属性控制 Region 合并的使用场景](/table-attributes.md#使用场景)。
 
 ### 索引热点
 
@@ -56,7 +59,7 @@ Value: null
 
 性能问题不一定是热点造成的，也可能存在多个因素共同影响，在排查前需要先确认是否与热点相关。
 
-- 判断写热点依据：打开监控面板 TiKV-Trouble-Shooting 中 Hot Write 面板（如下图所示），观察 Raftstore CPU 监控是否存在个别 TiKV 节点的指标明显高于其他节点的现象。
+- 判断写热点依据：打开监控面板 TiKV-Trouble-Shooting 中 Hot Write 面板，观察 Raftstore CPU 监控是否存在个别 TiKV 节点的指标明显高于其他节点的现象。
 
 - 判断读热点依据：打开监控面板 TIKV-Details 中 Thread_CPU，查看 coprocessor cpu 有没有明显的某个 TiKV 特别高。
 
@@ -80,13 +83,13 @@ Value: null
 
 ## 使用 SHARD_ROW_ID_BITS 处理热点表
 
-对于主键非整数或没有主键的表或者是联合主键，TiDB 会使用一个隐式的自增 RowID，大量 INSERT 时会把数据集中写入单个 Region，造成写入热点。
+对于非聚簇索引主键或没有主键的表，TiDB 会使用一个隐式的自增 RowID，大量 `INSERT` 时会把数据集中写入单个 Region，造成写入热点。
 
-通过设置 SHARD_ROW_ID_BITS，可以把 RowID 打散写入多个不同的 Region，缓解写入热点问题。但是设置的过大会造成 RPC 请求数放大，增加 CPU 和网络开销。
+通过设置 [`SHARD_ROW_ID_BITS`](/shard-row-id-bits.md)，可以把 RowID 打散写入多个不同的 Region，缓解写入热点问题。
 
 ```
-SHARD_ROW_ID_BITS = 4 表示 16 个分片\
-SHARD_ROW_ID_BITS = 6 表示 64 个分片\
+SHARD_ROW_ID_BITS = 4 表示 16 个分片
+SHARD_ROW_ID_BITS = 6 表示 64 个分片
 SHARD_ROW_ID_BITS = 0 表示默认值 1 个分片
 ```
 
@@ -169,3 +172,20 @@ TiDB 的 Coprocessor Cache 功能支持下推计算结果缓存。开启该功�
 
 + [TiDB 高并发写入场景最佳实践](/best-practices/high-concurrency-best-practices.md)
 + [Split Region 使用文档](/sql-statements/sql-statement-split-region.md)
+
+## 打散读热点
+
+在读热点场景中，热点 TiKV 无法及时处理读请求，导致读请求排队。但是，此时并非所有 TiKV 资源都已耗尽。为了降低延时，TiDB v7.1.0 引入了负载自适应副本读取功能，允许从其他 TiKV 节点读取副本，而无需在热点 TiKV 节点排队等待。你可以通过 [`tidb_load_based_replica_read_threshold`](/system-variables.md#tidb_load_based_replica_read_threshold-从-v700-版本开始引入) 系统变量控制读请求的排队长度。当 leader 节点的预估排队时间超过该阈值时，TiDB 会优先从 follower 节点读取数据。在读热点的情况下，与不打散读热点相比，该功能可提高读取吞吐量 70%～200%。
+
+### 基于 TiKV CPU 使用情况的热点 Region 调度
+
+从 v8.5.7 和 v9.0.0 开始，针对读热点，PD 支持基于 TiKV CPU 使用情况的热点 Region 调度。TiKV 在 Store 心跳中上报热点 Region 的读 CPU 使用情况，PD 可将 CPU 使用情况作为调度维度之一。该机制有助于 PD 识别出那些 QPS 或字节吞吐量看似均衡、但 TiKV CPU 使用量仍不均衡的读热点，例如包含不同 CPU 开销的负载，或不同 TiKV 节点处理不同负载模式的集群。
+
+- 对于支持上报读 CPU 使用情况的集群，`balance-hot-region-scheduler` 的默认 `read-priorities` 值为 `cpu,byte`。
+- 对于不支持上报读 CPU 使用情况的集群，PD 会自动回退到 `query,byte`；如果集群也不支持 `query` 维度，则回退到 `byte,key`。
+
+如需查看或调整调度维度，请使用 [`pd-ctl scheduler config balance-hot-region-scheduler`](/pd-control.md#scheduler-config-balance-hot-region-scheduler)。
+
+## 使用 TiKV MVCC 内存引擎缓解因多版本导致的读热点
+
+在 GC 历史版本数据的保留时间过长、频繁更新或删除时，可能会因扫描大量 MVCC 版本而导致读热点。针对这类热点，可通过开启 [TiKV MVCC 内存引擎](/tikv-in-memory-engine.md)功能缓解。

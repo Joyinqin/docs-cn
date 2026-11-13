@@ -1,6 +1,7 @@
 ---
 title: TiDB 4.0 GA Release Notes
 aliases: ['/docs-cn/dev/releases/release-4.0-ga/']
+summary: TiDB 4.0 GA 发布日期为 2020 年 5 月 28 日。该版本包含兼容性变化、重点修复的 Bug、新功能、Bug 修复等内容。其中 TiDB 新增了多项配置项和语法支持，TiFlash 修复了多项功能不一致的问题，TiKV 修复了多个备份和系统 panic 相关的问题，PD 修复了删除调度器和 presplit 功能无法正常使用的问题，Tools 中 BR 修复了从云存储恢复数据失败的问题，TiCDC 修复了多个系统 panic 和资源泄露的问题。
 ---
 
 # TiDB 4.0 GA Release Notes
@@ -15,8 +16,8 @@ TiDB 版本：4.0.0
     + 优化事务过大时系统的报错信息，方便排查问题 [#17219](https://github.com/pingcap/tidb/pull/17219)
 
 * TiCDC
-    + 优化 Changefeed 配置文件的结构，提升易用性 [#588](https://github.com/pingcap/ticdc/pull/588)
-    + 新增 `ignore-txn-start-ts` 配置项，过滤事务时条件由原来的 `commit_ts` 改为 `start_ts` [#589](https://github.com/pingcap/ticdc/pull/589)
+    + 优化 Changefeed 配置文件的结构，提升易用性 [#588](https://github.com/pingcap/tiflow/pull/588)
+    + 新增 `ignore-txn-start-ts` 配置项，过滤事务时条件由原来的 `commit_ts` 改为 `start_ts` [#589](https://github.com/pingcap/tiflow/pull/589)
 
 ## 重点修复的 Bug
 
@@ -58,10 +59,10 @@ TiDB 版本：4.0.0
     + Backup & Restore (BR)
         - 支持备份与恢复 `Sequence` 和 `View` [#242](https://github.com/pingcap/br/pull/242)
     + TiCDC
-        - 创建 `Changefeed` 时新增检查 Sink URI 的合法性 [#561](https://github.com/pingcap/ticdc/pull/561)
-        - 系统启动时检查 PD 和 TiKV 版本是否符合系统要求 [#570](https://github.com/pingcap/ticdc/pull/570)
-        - 支持同一个调度任务生成周期内可调度多张表 [#572](https://github.com/pingcap/ticdc/pull/572)
-        - HTTP API 中增加节点角色的信息 [#591](https://github.com/pingcap/ticdc/pull/591)
+        - 创建 `Changefeed` 时新增检查 Sink URI 的合法性 [#561](https://github.com/pingcap/tiflow/pull/561)
+        - 系统启动时检查 PD 和 TiKV 版本是否符合系统要求 [#570](https://github.com/pingcap/tiflow/pull/570)
+        - 支持同一个调度任务生成周期内可调度多张表 [#572](https://github.com/pingcap/tiflow/pull/572)
+        - HTTP API 中增加节点角色的信息 [#591](https://github.com/pingcap/tiflow/pull/591)
 
 ## Bug 修复
 
@@ -106,6 +107,6 @@ TiDB 版本：4.0.0
     * BR
         + 修复从云存储恢复数据时因网络原因导致恢复失败的问题 [#298](https://github.com/pingcap/br/pull/298)
     * TiCDC
-        + 修复若干因数据争用 (data race) 导致系统 panic 的问题 [#565](https://github.com/pingcap/ticdc/pull/565) [#566](https://github.com/pingcap/ticdc/pull/566)
-        + 修复若干因处理逻辑不正确导致资源泄露或系统阻塞的问题 [#574](https://github.com/pingcap/ticdc/pull/574) [#586](https://github.com/pingcap/ticdc/pull/586)
-        + 修复 CLI 因连接不上 PD 导致命令行阻塞的问题 [#579](https://github.com/pingcap/ticdc/pull/579)
+        + 修复若干因数据争用 (data race) 导致系统 panic 的问题 [#565](https://github.com/pingcap/tiflow/pull/565) [#566](https://github.com/pingcap/tiflow/pull/566)
+        + 修复若干因处理逻辑不正确导致资源泄露或系统阻塞的问题 [#574](https://github.com/pingcap/tiflow/pull/574) [#586](https://github.com/pingcap/tiflow/pull/586)
+        + 修复 CLI 因连接不上 PD 导致命令行阻塞的问题 [#579](https://github.com/pingcap/tiflow/pull/579)

@@ -12,13 +12,62 @@ aliases: ['/docs-cn/dev/optimistic-transaction/','/docs-cn/dev/reference/transac
 
 > **注意：**
 >
-> 自 v3.0.8 开始，TiDB 集群默认使用[悲观事务模型](/pessimistic-transaction.md)。但如果从 3.0.7 及之前版本创建的集群升级到 3.0.8 及之后的版本，不会改变默认事务模型，即**只有新创建的集群才会默认使用悲观事务模型**。
+> 自 v3.0.8 开始，TiDB 集群默认使用[悲观事务模式](/pessimistic-transaction.md)。但如果从 3.0.7 及之前版本创建的集群升级到 3.0.8 及之后的版本，不会改变默认事务模式，即**只有新创建的集群才会默认使用悲观事务模式**。
 
 ## 乐观事务原理
 
 为支持分布式事务，TiDB 中乐观事务使用两阶段提交协议，流程如下：
 
-![TiDB 中的两阶段提交](/media/2pc-in-tidb.png)
+```mermaid
+---
+title: 2PC in TiDB
+---
+sequenceDiagram
+    participant client
+    participant TiDB
+    participant PD
+    participant TiKV
+
+    client->>TiDB: begin
+    TiDB->>PD: get ts as start_ts
+
+    loop execute SQL
+        alt do read
+            TiDB->>PD: get region from PD or cache
+            TiDB->>TiKV: get data from TiKV or cache with start_ts
+            TiDB-->>client: return read result
+        end
+        alt do write
+            TiDB-->>TiDB: write in cache
+            TiDB-->>client: return write result
+        end
+    end
+
+    client->>TiDB: commit
+
+    opt start 2PC
+        TiDB-->>TiDB: for all keys need to write,choose first one as primary
+        TiDB->>PD: locate each key
+        TiDB-->>TiDB: group keys by region to [](region,keys)
+
+        opt prewrite with start_ts
+            TiDB->>TiKV: prewrite(primary_key,start_ts)
+            loop prewrite to each region in [](region,keys) parallelly
+                TiDB->>TiKV: prewrite(keys,primary_key,start_ts)
+            end
+        end
+
+        opt commit
+            TiDB-->>PD: get ts as commit_ts
+            TiDB-->>TiKV: commit primary with commit_ts
+            loop send commit to each region in [](region,keys) parallelly
+                TiDB->>TiKV: commit(keys,commit_ts)
+            end
+        end
+    end
+
+    TiDB-->>client: success
+```
 
 1. 客户端开始一个事务。
 
@@ -27,7 +76,7 @@ aliases: ['/docs-cn/dev/optimistic-transaction/','/docs-cn/dev/reference/transac
 2. 客户端发起读请求。
 
     1. TiDB 从 PD 获取数据路由信息，即数据具体存在哪个 TiKV 节点上。
-    2. TiDB 从 TiKV 获取 `start_ts` 版本下对应的数据。
+    2. TiDB 从 TiKV 获取 `start_ts` 版本下对应的数据。
 
 3. 客户端发起写请求。
 
@@ -65,9 +114,18 @@ aliases: ['/docs-cn/dev/optimistic-transaction/','/docs-cn/dev/reference/transac
 
 ## 事务的重试
 
-使用乐观事务模型时，在高冲突率的场景中，事务容易发生写写冲突而导致提交失败。MySQL 使用悲观事务模型，在执行写入类型的 SQL 语句的过程中进行加锁并且在 Repeatable Read 隔离级别下使用了当前读的机制，能够读取到最新的数据，所以提交时一般不会出现异常。为了降低应用改造难度，TiDB 提供了数据库内部自动重试机制。
+> **注意：**
+>
+> 从 v8.0.0 开始，[`tidb_disable_txn_auto_retry`](/system-variables.md#tidb_disable_txn_auto_retry) 被废弃，不再支持乐观事务的自动重试。推荐使用[悲观事务模式](/pessimistic-transaction.md)。如果使用乐观事务模式发生冲突，请在应用里捕获错误并重试。
+
+使用乐观事务模型时，在高冲突率的场景中，事务容易发生写写冲突而导致提交失败。从 v3.0.8 开始，TiDB 默认使用[悲观事务模型](/pessimistic-transaction.md)，与 MySQL 一致。这意味着 TiDB 和 MySQL 在执行写入类型的 SQL 语句的过程中会进行加锁，并且在 Repeatable Read 隔离级别下使用了当前读的机制，能够读取到最新的数据，所以提交时一般不会出现异常。
 
 ### 重试机制
+
+> **注意：**
+>
+> - 从 TiDB v3.0.0 开始，事务的自动重试功能默认为禁用状态，因为该功能可能导致**事务隔离级别遭到破坏**。
+> - 从 TiDB v8.0.0 开始，不再支持乐观事务的自动重试。
 
 当事务提交时，如果发现写写冲突，TiDB 内部重新执行包含写操作的 SQL 语句。你可以通过设置 `tidb_disable_txn_auto_retry = OFF` 开启自动重试，并通过 `tidb_retry_limit` 设置重试次数：
 
@@ -75,7 +133,7 @@ aliases: ['/docs-cn/dev/optimistic-transaction/','/docs-cn/dev/reference/transac
 # 设置是否禁用自动重试，默认为 “on”，即不重试。
 tidb_disable_txn_auto_retry = OFF
 # 控制重试次数，默认为 “10”。只有自动重试启用时该参数才会生效。
-# 当 “tidb_retry_limit= 0” 时，也会禁用自动重试。
+# 当 “tidb_retry_limit = 0” 时，也会禁用自动重试。
 tidb_retry_limit = 10
 ```
 
@@ -119,11 +177,11 @@ TiDB 默认不进行事务重试，因为重试事务可能会导致更新丢失
 
 事务重试的局限性与其原理有关。事务重试可概括为以下三个步骤：
 
-1. 重新获取 `start_ts`。
+1. 重新获取 `start_ts`。
 2. 重新执行包含写操作的 SQL 语句。
 3. 再次进行两阶段提交。
 
-第二步中，重试时仅重新执行包含写操作的 SQL 语句，并不涉及读操作的 SQL 语句。但是当前事务中读到数据的时间与事务真正开始的时间发生了变化，写入的版本变成了重试时获取的 `start_ts` 而非事务一开始时获取的 `start_ts`。因此，当事务中存在依赖查询结果来更新的语句时，重试将无法保证事务原本可重复读的隔离级别，最终可能导致结果与预期出现不一致。
+第二步中，重试时仅重新执行包含写操作的 SQL 语句，并不涉及读操作的 SQL 语句。但是当前事务中读到数据的时间与事务真正开始的时间发生了变化，写入的版本变成了重试时获取的 `start_ts` 而非事务一开始时获取的 `start_ts`。因此，当事务中存在依赖查询结果来更新的语句时，重试将无法保证事务原本可重复读的隔离级别，最终可能导致结果与预期出现不一致。
 
 如果业务可以容忍事务重试导致的异常，或并不关注事务是否以可重复读的隔离级别来执行，则可以开启自动重试。
 
@@ -147,4 +205,4 @@ scheduler-concurrency = 2048000
 
 ## 更多阅读
 
-- [Percolator 和 TiDB 事务算法](https://pingcap.com/blog-cn/percolator-and-txn/)
+- [Percolator 和 TiDB 事务算法](https://pingkai.cn/tidbcommunity/blog/f537be2c)

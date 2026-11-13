@@ -8,40 +8,57 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-show-analyze-status/']
 
 `SHOW ANALYZE STATUS` 语句提供 TiDB 正在执行的统计信息收集任务以及有限条历史任务记录。
 
+从 TiDB v6.1.0 起，执行 `SHOW ANALYZE STATUS` 语句将显示集群级别的任务，且 TiDB 重启后仍能看到重启之前的任务记录。在 TiDB v6.1.0 之前，执行 `SHOW ANALYZE STATUS` 语句仅显示实例级别的任务，且 TiDB 重启后任务记录会被清空。
+
+从 TiDB v6.1.0 起，你可以通过系统表 `mysql.analyze_jobs` 查看过去 7 天内的历史记录。
+
+从 TiDB v7.3.0 起，你可以通过系统表 `mysql.analyze_jobs` 或者 `SHOW ANALYZE STATUS` 查看当前 `ANALYZE` 任务的进度。
+
+目前，`SHOW ANALYZE STATUS` 语句返回以下列：
+
+| 列名 | 说明            |
+| :-------- | :------------- |
+| `Table_schema` |  数据库名    |
+| `Table_name` | 表名 |
+| `Partition_name` | 分区名 |
+| `Job_info` | `ANALYZE` 子任务的简要描述。该描述包含 `ANALYZE` 的作用域（例如列、索引或全局统计信息合并），并可能包含实际生效的选项，例如 `buckets`、`topn`、`samplerate` 或 `samples`。
+| `Processed_rows` | 已经 `ANALYZE` 的行数 |
+| `Start_time` | 任务开始执行的时间 |
+| `End_time` | 任务结束执行的时间 |
+| `State` | 任务状态，包括 pending（等待）、running（正在执行）、finished（执行成功）和 failed（执行失败）|
+| `Fail_reason` | 任务失败的原因。如果执行成功则为 `NULL`。 |
+| `Instance` | 执行任务的 TiDB 实例 |
+| `Process_id` | 执行任务的 process ID |
+
 ## 语法图
 
-**ShowStmt:**
+```ebnf+diagram
+ShowAnalyzeStatusStmt ::= 'SHOW' 'ANALYZE' 'STATUS' ShowLikeOrWhereOpt
 
-![ShowStmt](/media/sqlgram/ShowStmt.png)
-
-**ShowTargetFilterable:**
-
-![ShowTargetFilterable](/media/sqlgram/ShowTargetFilterable.png)
+ShowLikeOrWhereOpt ::= 'LIKE' SimpleExpr | 'WHERE' Expression
+```
 
 ## 示例
 
-{{< copyable "sql" >}}
+> **注意：**
+>
+> 从 v9.0.0 起，TiDB 不再支持使用统计信息版本 1（`tidb_analyze_version = 1`）收集新的统计信息。以下示例展示了基于统计信息版本 2 的 `ANALYZE` 行为。
 
 ```sql
-create table t(x int, index idx(x)) partition by hash(x) partition 4;
-analyze table t;
-show analyze status;
-```
+mysql> create table t(x int, index idx(x)) partition by hash(x) partitions 2;
+Query OK, 0 rows affected (0.69 sec)
 
-```sql
-+--------------+------------+----------------+-------------------+----------------+---------------------+----------+
-| Table_schema | Table_name | Partition_name | Job_info          | Processed_rows | Start_time          | State    |
-+--------------+------------+----------------+-------------------+----------------+---------------------+----------+
-| test         | t          | p1             | analyze columns   |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p0             | analyze columns   |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p0             | analyze index idx |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p1             | analyze index idx |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p2             | analyze index idx |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p3             | analyze index idx |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p3             | analyze columns   |              0 | 2020-05-25 17:23:55 | finished |
-| test         | t          | p2             | analyze columns   |              0 | 2020-05-25 17:23:55 | finished |
-+--------------+------------+----------------+-------------------+----------------+---------------------+----------+
-8 rows in set (0.00 sec)
+mysql> analyze table t;
+Query OK, 0 rows affected, 2 warnings (0.03 sec)
+
+mysql> show analyze status;
++--------------+------------+----------------+--------------------------------------------------------------------+----------------+---------------------+---------------------+----------+-------------+----------------+------------+--------------------+----------+----------------------+
+| Table_schema | Table_name | Partition_name | Job_info                                                           | Processed_rows | Start_time          | End_time            | State    | Fail_reason | Instance       | Process_ID | Remaining_seconds  | Progress | Estimated_total_rows |
++--------------+------------+----------------+--------------------------------------------------------------------+----------------+---------------------+---------------------+----------+-------------+----------------+------------+--------------------+----------+----------------------+
+| test         | t          | p1             | analyze table all columns with 256 buckets, 500 topn, 1 samplerate |              0 | 2022-05-27 11:30:12 | 2022-05-27 11:30:12 | finished | NULL        | 127.0.0.1:4000 | NULL       | NULL               | NULL     | NULL                 |
+| test         | t          | p0             | analyze table all columns with 256 buckets, 500 topn, 1 samplerate |              0 | 2022-05-27 11:30:12 | 2022-05-27 11:30:12 | finished | NULL        | 127.0.0.1:4000 | NULL       | NULL               | NULL     | NULL                 |
++--------------+------------+----------------+--------------------------------------------------------------------+----------------+---------------------+---------------------+----------+-------------+----------------+------------+--------------------+----------+----------------------+
+2 rows in set (0.00 sec)
 ```
 
 ## MySQL 兼容性
@@ -50,4 +67,4 @@ show analyze status;
 
 ## 另请参阅
 
-* [ANALYZE_STATUS 表](/information-schema/information-schema-analyze-status.md)
+* [`ANALYZE_STATUS` 表](/information-schema/information-schema-analyze-status.md)

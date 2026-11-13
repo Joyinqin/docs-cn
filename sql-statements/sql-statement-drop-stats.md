@@ -12,57 +12,88 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-drop-stats/']
 
 ```ebnf+diagram
 DropStatsStmt ::=
-    'DROP' 'STATS' TableName
+    'DROP' 'STATS' TableName  ("PARTITION" partition | "GLOBAL")? ( ',' TableName )*
 
 TableName ::=
     Identifier ('.' Identifier)?
 ```
 
-## 示例
+## 使用
 
-{{< copyable "sql" >}}
+以下语句用于删除 `TableName` 的所有统计信息。如果指定了分区表，则此语句还会删除该表中所有分区的统计信息以及[动态裁剪模式下的分区表统计信息](/statistics.md#收集动态裁剪模式下的分区表统计信息)。
+
+```sql
+DROP STATS TableName
+```
+
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+
+以下语句只删除 `PartitionNameList` 中指定分区的统计信息：
+
+```sql
+DROP STATS TableName PARTITION PartitionNameList;
+```
+
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+
+以下语句只删除指定表在动态裁剪模式下生成的全局统计信息：
+
+```sql
+DROP STATS TableName GLOBAL;
+```
+
+```
+Query OK, 0 rows affected (0.00 sec)
+```
+
+## 示例
 
 ```sql
 CREATE TABLE t(a INT);
 ```
 
-```sql
+```
 Query OK, 0 rows affected (0.01 sec)
 ```
-
-{{< copyable "sql" >}}
 
 ```sql
 SHOW STATS_META WHERE db_name='test' and table_name='t';
 ```
 
-```sql
-+---------+------------+----------------+---------------------+--------------+-----------+
-| Db_name | Table_name | Partition_name | Update_time         | Modify_count | Row_count |
-+---------+------------+----------------+---------------------+--------------+-----------+
-| test    | t          |                | 2020-05-25 20:34:33 |            0 |         0 |
-+---------+------------+----------------+---------------------+--------------+-----------+
+```
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
+| Db_name | Table_name | Partition_name | Update_time         | Modify_count | Row_count | Last_analyze_time |
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
+| test    | t          |                | 2020-05-25 20:34:33 |            0 |         0 | NULL              |
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
 1 row in set (0.00 sec)
 ```
-
-{{< copyable "sql" >}}
 
 ```sql
 DROP STATS t;
 ```
 
-```sql
+```
 Query OK, 0 rows affected (0.00 sec)
 ```
 
-{{< copyable "sql" >}}
+`DROP STATS` 会删除表的 TopN、直方图桶（bucket）等统计信息，但不会删除 `STATS_META` 中该表的记录。因此，执行 `DROP STATS` 后，`SHOW STATS_META` 仍会返回该表的 `Modify_count` 和 `Row_count` 信息。
 
 ```sql
 SHOW STATS_META WHERE db_name='test' and table_name='t';
 ```
 
-```sql
-Empty set (0.00 sec)
+```
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
+| Db_name | Table_name | Partition_name | Update_time         | Modify_count | Row_count | Last_analyze_time |
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
+| test    | t          |                | 2020-05-25 20:34:33 |            0 |         0 | NULL              |
++---------+------------+----------------+---------------------+--------------+-----------+-------------------+
+1 row in set (0.00 sec)
 ```
 
 ## MySQL 兼容性
@@ -71,4 +102,4 @@ Empty set (0.00 sec)
 
 ## 另请参阅
 
-* [统计信息简介](/statistics.md)
+* [常规统计信息](/statistics.md)

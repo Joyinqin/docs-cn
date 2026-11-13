@@ -1,6 +1,7 @@
 ---
 title: TiDB 3.0.0-rc.1 Release Notes
 aliases: ['/docs-cn/dev/releases/release-3.0.0-rc.1/','/docs-cn/dev/releases/3.0.0-rc.1/']
+summary: TiDB 3.0.0-rc.1 发布，对系统稳定性、易用性、功能、优化器、统计信息和执行引擎做了很多改进。包括 SQL 优化器、执行引擎、Server、DDL、PD、TiKV、Tools 和 TiDB Ansible 的更新和修复。
 ---
 
 # TiDB 3.0.0-rc.1 Release Notes
@@ -21,7 +22,7 @@ TiDB Ansible 版本：3.0.0-rc.1
     - 利用列之间的顺序相关性提升代价估算准确度，并提供启发式参数 `tidb_opt_correlation_exp_factor` 用于控制在相关性无法被直接用于估算的场景下对索引扫描的偏好程度。[#9839](https://github.com/pingcap/tidb/pull/9839)
     - 当过滤条件中包含相关列时，在抽取复合索引的访问条件时尽可能多地匹配索引的前缀列。[#10053](https://github.com/pingcap/tidb/pull/10053)
     - 用动态规划决定连接的执行顺序，当参与连接的表数量不多于 `tidb_opt_join_reorder_threshold` 时启用。[#8816](https://github.com/pingcap/tidb/pull/8816)
-    - 在构造 Index Join 的的内表中，以复合索引作为访问条件时，尽可能多地匹配索引的前缀列。[#8471](https://github.com/pingcap/tidb/pull/8471)
+    - 在构造 Index Join 的内表中，以复合索引作为访问条件时，尽可能多地匹配索引的前缀列。[#8471](https://github.com/pingcap/tidb/pull/8471)
     - 提升对单列索引上值为 NULL 的行数估算准确度。[#9474](https://github.com/pingcap/tidb/pull/9474)
     - 在逻辑优化阶段消除聚合函数时特殊处理 `GROUP_CONCAT` ，防止产生错误的执行结果。[#9967](https://github.com/pingcap/tidb/pull/9967)
     - 当过滤条件为常量时，正确地将它下推到连接算子的子节点上。[#9848](https://github.com/pingcap/tidb/pull/9848)
@@ -119,7 +120,7 @@ TiDB Ansible 版本：3.0.0-rc.1
     - Importer 支持 upload SST 到 TiKV 限速 [#4412](https://github.com/tikv/tikv/pull/4412)
     - Lightning 优化导入表的顺序，按照表的数据大小顺序进行导入，减少导入过程中大表执行 checksum 和 Analyze 对集群的影响，并且提高 Checksum 和 Analyze 的成功率 [#156](https://github.com/pingcap/tidb-lightning/pull/156)
     - 提升 Lightning encode SQL 性能，性能提升 50%，直接解析数据源文件内容成 TiDB 的 types.Datum，省去 KV encoder 的多余解析工作 [#145](https://github.com/pingcap/tidb-lightning/pull/145)
-    - 日志格式改为 [Unified Log Format](https://github.com/tikv/rfcs/blob/master/text/2018-12-19-unified-log-format.md) [#162](https://github.com/pingcap/tidb-lightning/pull/162)
+    - 日志格式改为 Unified Log Format [#162](https://github.com/pingcap/tidb-lightning/pull/162)
     - 新增一些命令行选项，即使缺少配置文件也能使用。[#157](https://github.com/pingcap/tidb-lightning/pull/157)
 + 数据同步对比工具 (sync-diff-inspector)
     - 支持 checkpoint，记录校验状态，重启后从上次进度继续校验 [#224](https://github.com/pingcap/tidb-tools/pull/224)

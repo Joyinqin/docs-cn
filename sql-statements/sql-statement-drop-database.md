@@ -6,7 +6,7 @@ aliases: ['/docs-cn/dev/sql-statements/sql-statement-drop-database/','/docs-cn/d
 
 # DROP DATABASE
 
-`DROP DATABASE` 语句用于永久删除指定的数据库 schema，以及删除所有在 schema 中创建的表和视图。与被删数据库相关联的用户权限不受影响。
+`DROP DATABASE` 语句用于永久删除指定的数据库，以及删除所有在 schema 中创建的表和视图。与被删数据库相关联的用户权限不受影响。
 
 ## 语法图
 
@@ -66,7 +66,7 @@ SHOW DATABASES;
 
 ## MySQL 兼容性
 
-`DROP DATABASE` 语句与 MySQL 完全兼容。如发现任何兼容性差异，请在 GitHub 上提交 [issue](https://github.com/pingcap/tidb/issues/new/choose)。
+`DROP DATABASE` 语句与 MySQL 完全兼容。如发现任何兼容性差异，请尝试 [TiDB 支持资源](/support.md)。
 
 ## 另请参阅
 

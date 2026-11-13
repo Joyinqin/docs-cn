@@ -1,6 +1,7 @@
 ---
 title: PD Recover 使用文档
 aliases: ['/docs-cn/dev/pd-recover/','/docs-cn/dev/reference/tools/pd-recover/']
+summary: PD Recover 是用于恢复无法正常启动或服务的 PD 集群的工具。安装方式包括从源代码编译和下载 TiDB 工具包。恢复集群的方式有两种：从存活的 PD 节点重建和完全重建。从存活的 PD 节点重建集群需要停止所有节点，启动存活的 PD 节点，并使用 pd-recover 修复元数据。完全重建 PD 集群需要获取 Cluster ID 和已分配 ID，部署新的 PD 集群，使用 pd-recover 修复，然后重启整个集群。
 ---
 
 # PD Recover 使用文档
@@ -9,32 +10,73 @@ PD Recover 是对 PD 进行灾难性恢复的工具，用于恢复无法正常�
 
 ## 安装 PD Recover
 
-要使用 PD Recover，你可以[从源代码编译](#从源代码编译)，也可以直接[下载 TiDB 安装包](#下载-tidb-安装包)。
+要使用 PD Recover，你可以[从源代码编译](#从源代码编译)，也可以直接[下载 TiDB 工具包](#下载-tidb-工具包)。
 
 ### 从源代码编译
 
-* [Go](https://golang.org/)：PD Recover 使用了 Go 模块，请安装 Go v1.13 或更新版本。
+* [Go](https://golang.org/)：PD Recover 使用了 Go 模块，请安装 Go 1.25 或以上版本。
 * 在 [PD](https://github.com/pingcap/pd) 根目录下，运行 `make pd-recover` 命令来编译源代码并生成 `bin/pd-recover`。
 
 > **注意：**
 >
 > 一般来说，用户不需要编译源代码，因为发布的二进制文件或 Docker 中已包含 PD Recover 工具。开发者可以参考以上步骤来编译源代码。
 
-### 下载 TiDB 安装包
+### 下载 TiDB 工具包
 
-PD Recover 包含在 TiDB 安装包中。直接下载 TiDB 安装包即可获取最新版本的 PD Recover。
+PD Recover 的安装包位于 TiDB 离线工具包中。下载方式，请参考 [TiDB 工具下载](/download-ecosystem-tools.md)。
 
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/tidb-{version}-linux-amd64.tar.gz` (pd-recover) | Linux | amd64 | `https://download.pingcap.org/tidb-{version}-linux-amd64.sha256` |
+下面介绍两种重建集群的方式：从存活的 PD 节点重建和完全重建。
+
+## 方式一：从存活的 PD 节点重建集群
+
+当 PD 集群的大多数节点发生灾难性故障时，集群将无法提供服务。当还有 PD 节点存活时，可以选择一个存活的 PD 节点，通过强制修改 Raft Group 的成员，使该节点重新恢复服务。具体操作步骤如下：
+
+### 第 1 步：停止所有节点
+
+停止集群中的 TiDB、TiKV 和 TiFlash 服务进程，以防止在恢复过程中与 PD 参数交互，造成数据错乱或其他无法挽救的异常状况。
+
+### 第 2 步：启动存活的 PD 节点
+
+使用启动参数 `--force-new-cluster` 拉起该存活的 PD 节点，并确保该节点使用的是其原始数据目录。你可以在命令行中通过 `--data-dir` 显式指定，也可以在 `conf/pd.toml` 中提前配置 `data-dir`。例如：
+
+```shell
+./bin/pd-server --force-new-cluster --name=pd-127.0.0.10-2379 --data-dir=/path/to/existing/pd/data --client-urls=http://0.0.0.0:2379 --advertise-client-urls=http://127.0.0.1:2379 --peer-urls=http://0.0.0.0:2380 --advertise-peer-urls=http://127.0.0.1:2380 --config=conf/pd.toml
+```
+
+该命令会启动一个临时的单节点 PD，用于让下一步的 `pd-recover` 连接并修复元数据。请保持该 PD 进程运行，并在另一个终端窗口中执行下一步。
 
 > **注意：**
 >
-> `{version}` 是 TiDB 的版本号。例如，`v5.2.2` 的安装包下载链接为 `https://download.pingcap.org/tidb-v5.2.2-linux-amd64.tar.gz`。
+> - 如果未在命令行中指定 `--data-dir`，请确保 `conf/pd.toml` 中的 `data-dir` 已正确指向该存活 PD 节点的原始数据目录，否则后续执行 `pd-recover` 时可能失败。
+> - 如果同时在 `conf/pd.toml` 和命令行参数中指定了 `data-dir`，则 `conf/pd.toml` 中的 `data-dir` 优先生效。
 
-## 快速开始
+### 第 3 步：使用 `pd-recover` 修复元数据
 
-### 获取 Cluster ID
+该方法是利用少数派 PD 节点恢复服务，但由于该节点可能存在数据落后的情况，因此对于 `alloc_id` 和 `tso` 等数据，一旦发生回退，可能导致集群数据错乱或不可用。为确保该节点能提供正确的分配 ID 和 TSO 等服务，需要使用 `pd-recover` 修改元数据。具体命令参考：
+
+```shell
+./bin/pd-recover --from-old-member --endpoints=http://127.0.0.1:2379 # 指定对应的 PD 地址
+```
+
+> **注意：**
+>
+> 该步骤会自动将存储中的 `alloc_id` 增加一个安全值 `100000000`。这将导致后续集群中分配的 ID 偏大。
+>
+> 此外，`pd-recover` 不会修改 TSO。因此，在执行此步骤之前，请确保本地时间晚于故障发生时间，并且确认故障前 PD 组件之间已开启 NTP 时钟同步服务。如果未开启，则需要将本地时钟调整到一个未来的时间，以确保 TSO 不会回退。
+
+### 第 4 步：重启这个 PD
+
+当上一步出现 `recovery is successful` 的提示信息后，停止第 2 步中使用 `--force-new-cluster` 启动的临时 PD 进程，然后使用正常方式重启该 PD，重启时不要再携带 `--force-new-cluster` 参数。
+
+### 第 5 步：扩容 PD 并启动集群
+
+确认第 4 步中的 PD 已正常启动并提供服务后，通过部署工具扩容 PD，并启动集群中的其他组件。至此服务恢复。
+
+## 方式二：完全重建 PD 集群
+
+该方式适用于所有 PD 的数据都丢失，但 TiDB、TiKV 和 TiFlash 等其他组件数据都还存在的情况。
+
+### 第 1 步：获取 Cluster ID
 
 一般在 PD、TiKV 或 TiDB 的日志中都可以获取 Cluster ID。你可以直接在服务器上查看日志以获取 Cluster ID。
 
@@ -45,7 +87,7 @@ PD Recover 包含在 TiDB 安装包中。直接下载 TiDB 安装包即可获取
 {{< copyable "shell-regular" >}}
 
 ```bash
-cat {{/path/to}}/pd.log | grep "init cluster id"
+grep "init cluster id" {{/path/to}}/pd.log
 ```
 
 ```bash
@@ -62,7 +104,7 @@ cat {{/path/to}}/pd.log | grep "init cluster id"
 {{< copyable "shell-regular" >}}
 
 ```bash
-cat {{/path/to}}/tidb.log | grep "init cluster id"
+grep "init cluster id" {{/path/to}}/tidb.log
 ```
 
 ```bash
@@ -77,7 +119,7 @@ cat {{/path/to}}/tidb.log | grep "init cluster id"
 {{< copyable "shell-regular" >}}
 
 ```bash
-cat {{/path/to}}/tikv.log | grep "connect to PD cluster"
+grep "connect to PD cluster" {{/path/to}}/tikv.log
 ```
 
 ```bash
@@ -85,7 +127,7 @@ cat {{/path/to}}/tikv.log | grep "connect to PD cluster"
 ...
 ```
 
-### 获取已分配 ID
+### 第 2 步：获取已分配 ID
 
 在指定已分配 ID 时，需指定一个比当前最大的已分配 ID 更大的值。可以从监控中获取已分配 ID，也可以直接在服务器上查看日志。
 
@@ -100,7 +142,7 @@ cat {{/path/to}}/tikv.log | grep "connect to PD cluster"
 {{< copyable "shell-regular" >}}
 
 ```bash
-cat {{/path/to}}/pd*.log | grep "idAllocator allocates a new id" |  awk -F'=' '{print $2}' | awk -F']' '{print $1}' | sort -r -n | head -n 1
+grep "idAllocator allocates a new id" {{/path/to}}/pd*.log |  awk -F'=' '{print $2}' | awk -F']' '{print $1}' | sort -r -n | head -n 1
 ```
 
 ```bash
@@ -110,11 +152,13 @@ cat {{/path/to}}/pd*.log | grep "idAllocator allocates a new id" |  awk -F'=' '{
 
 你也可以在所有 PD server 中运行上述命令，找到最大的值。
 
-### 部署一套新的 PD 集群
+### 第 3 步：部署一套新的 PD 集群
 
-部署新的 PD 集群之前，需要停止当前的 PD 集群，然后删除旧的数据目录（用 `--data-dir` 指定）。
+部署新的 PD 集群之前，需要停止当前的 PD 集群，然后删除旧的数据目录（或者用 `--data-dir` 指定新的数据目录）。
 
-### 使用 pd-recover
+### 第 4 步：使用 pd-recover
+
+只需在一个 PD 节点上执行 `pd-recover` 即可。需要注意的是，为了避免重新分配，建议将参数 `-alloc-id` 设置为大于已分配 ID 的值。例如，从监控或者日志获得的最大已分配 ID 是 `9000`，则建议给参数 `-alloc-id` 传入 `10000` 或更大值。
 
 {{< copyable "shell-regular" >}}
 
@@ -122,7 +166,7 @@ cat {{/path/to}}/pd*.log | grep "idAllocator allocates a new id" |  awk -F'=' '{
 ./pd-recover -endpoints http://10.0.1.13:2379 -cluster-id 6747551640615446306 -alloc-id 10000
 ```
 
-### 重启整个集群
+### 第 5 步：重启整个集群
 
 当出现 `recovery is successful` 的提示信息时，重启整个集群。
 

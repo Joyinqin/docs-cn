@@ -1,5 +1,6 @@
 ---
 title: TiDB 4.0.12 Release Notes
+summary: TiDB 4.0.12 发布，新增 TiFlash 工具用于检测状态。优化了 EXPLAIN 语句输出信息，在 metrics 监控中记录了 PREPARE 执行失败的问题。TiKV 修复了多个问题，包括处理 JSON 向字符串转换时空格缺失的问题。PD 修复了 store 缺失 label 的隔离级别错误问题。TiFlash 修复了多个查询结果错误的问题。TiCDC 修复了多个数据丢失和资源释放问题。BR 修复了多个备份和恢复问题。TiDB Lightning 修复了多个数据错误和文件损坏问题。
 ---
 
 # TiDB 4.0.12 Release Notes
@@ -51,8 +52,8 @@ TiDB 版本：4.0.12
 
     + TiCDC
 
-        - 若任务的暂停同步时间超过 1 天，再次启动该任务时需要二次确认 [#1497](https://github.com/pingcap/ticdc/pull/1497)
-        - 为 Old Value 功能添加监控面板 [#1571](https://github.com/pingcap/ticdc/pull/1571)
+        - 若任务的暂停同步时间超过 1 天，再次启动该任务时需要二次确认 [#1497](https://github.com/pingcap/tiflow/pull/1497)
+        - 为 Old Value 功能添加监控面板 [#1571](https://github.com/pingcap/tiflow/pull/1571)
 
     + Backup & Restore (BR)
 
@@ -118,11 +119,11 @@ TiDB 版本：4.0.12
 
     + TiCDC
 
-        - 修复 `resolved ts` 时间乱序的问题 [#1464](https://github.com/pingcap/ticdc/pull/1464)
-        - 修复由于网络不稳定而导致的表调度出错引发的数据丢失问题 [#1508](https://github.com/pingcap/ticdc/pull/1508)
-        - 修复终止 processor 时不能及时释放资源的问题 [#1547](https://github.com/pingcap/ticdc/pull/1547)
-        - 修复因事务计数器未正确更新而导致下游数据库链接可能泄露的问题 [#1524](https://github.com/pingcap/ticdc/pull/1524)
-        - 修复因 PD 抖动时多个 owner 共存可能导致数据表丢失的问题 [#1540](https://github.com/pingcap/ticdc/pull/1540)
+        - 修复 `resolved ts` 时间乱序的问题 [#1464](https://github.com/pingcap/tiflow/pull/1464)
+        - 修复由于网络不稳定而导致的表调度出错引发的数据丢失问题 [#1508](https://github.com/pingcap/tiflow/pull/1508)
+        - 修复终止 processor 时不能及时释放资源的问题 [#1547](https://github.com/pingcap/tiflow/pull/1547)
+        - 修复因事务计数器未正确更新而导致下游数据库链接可能泄露的问题 [#1524](https://github.com/pingcap/tiflow/pull/1524)
+        - 修复因 PD 抖动时多个 owner 共存可能导致数据表丢失的问题 [#1540](https://github.com/pingcap/tiflow/pull/1540)
 
     + Backup & Restore (BR)
 

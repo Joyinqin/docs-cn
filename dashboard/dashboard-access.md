@@ -1,11 +1,16 @@
 ---
 title: 访问 TiDB Dashboard
 aliases: ['/docs-cn/dev/dashboard/dashboard-access/']
+summary: TiDB Dashboard 可通过浏览器访问，支持多 PD 实例访问。浏览器兼容性包括 Chrome、Firefox 和 Edge。登录界面可使用 root 用户或自定义 SQL 用户登录。支持简体中文和英文语言切换。可在用户页面登出当前用户。
 ---
 
 # 访问 TiDB Dashboard
 
 通过浏览器访问 <http://127.0.0.1:2379/dashboard/>（将 `127.0.0.1:2379` 替换为实际 PD 实例的地址和端口）即可打开 TiDB Dashboard。
+
+> **注意：**
+>
+> TiDB v6.5.0 且 TiDB Operator v1.4.0 之后，在 Kubernetes 上支持将 TiDB Dashboard 作为独立的 Pod 部署。在 TiDB Operator 环境，可直接访问该 Pod 的 IP 来打开 TiDB Dashboard。具体信息，参考 [TiDB Operator 部署独立的 TiDB Dashboard](https://docs.pingcap.com/zh/tidb-in-kubernetes/v1.6/get-started#部署独立的-tidb-dashboard)。
 
 ## 多 PD 实例访问
 
@@ -31,10 +36,9 @@ TiDB Dashboard 可在常见的、更新及时的桌面浏览器中使用，具�
 
 访问 TiDB Dashboard 将会显示用户登录界面。 
 
-- 可使用 TiDB 的 root 用户登录。默认情况下，root 用户密码为空。
+- 可使用 TiDB 的 root 用户登录。
+- 也可以使用单点登录 (Single Sign-On, SSO)。详情参见[配置 TiDB Dashboard 使用 SSO 登录](/dashboard/dashboard-session-sso.md)。
 - 如果创建了[自定义 SQL 用户](/dashboard/dashboard-user.md)，也可以使用自定义的 SQL 用户和密码登录。
-
-![登录界面](/media/dashboard/dashboard-access-login.png)
 
 如果存在以下情况，则可能会登录失败：
 

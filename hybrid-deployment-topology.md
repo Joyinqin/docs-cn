@@ -17,11 +17,272 @@ aliases: ['/docs-cn/dev/hybrid-deployment-topology/']
 | TiKV | 6 | 32 VCore 64GB | 10.0.1.7<br/> 10.0.1.8<br/> 10.0.1.9 | 1. 区分实例级别的 port、status_port；<br/> 2. 配置全局参数 readpool、storage 以及 raftstore；<br/> 3. 配置实例级别 host 维度的 labels；<br/> 4. 配置 numa 绑核操作|
 | Monitoring & Grafana | 1 | 4 VCore 8GB * 1 500GB (ssd)  | 10.0.1.10 | 默认配置 |
 
+> **注意：**
+>
+> 该表中拓扑实例的 IP 为示例 IP。在实际部署时，请替换为实际的 IP。
+
 ### 拓扑模版
 
-[简单混部配置模板](https://github.com/pingcap/docs-cn/blob/master/config-templates/simple-multi-instance.yaml)
+<details>
+<summary>简单混部配置模板</summary>
 
-[详细混部配置模板](https://github.com/pingcap/docs-cn/blob/master/config-templates/complex-multi-instance.yaml)
+```yaml
+# # Global variables are applied to all deployments and used as the default value of
+# # the deployments if a specific deployment value is missing.
+global:
+  user: "tidb"
+  ssh_port: 22
+  deploy_dir: "/tidb-deploy"
+  data_dir: "/tidb-data"
+
+server_configs:
+  tikv:
+    readpool.unified.max-thread-count: <The value refers to the calculation formula result of the multi-instance topology document.>
+    readpool.storage.use-unified-pool: false
+    readpool.coprocessor.use-unified-pool: true
+    storage.block-cache.capacity: "<The value refers to the calculation formula result of the multi-instance topology document.>"
+    raftstore.capacity: "<The value refers to the calculation formula result of the multi-instance topology document.>"
+  pd:
+    replication.location-labels: ["host"]
+
+pd_servers:
+  - host: 10.0.1.4
+  - host: 10.0.1.5
+  - host: 10.0.1.6
+
+tidb_servers:
+  - host: 10.0.1.1
+    port: 4000
+    status_port: 10080
+    numa_node: "0"
+  - host: 10.0.1.1
+    port: 4001
+    status_port: 10081
+    numa_node: "1"
+  - host: 10.0.1.2
+    port: 4000
+    status_port: 10080
+    numa_node: "0"
+  - host: 10.0.1.2
+    port: 4001
+    status_port: 10081
+    numa_node: "1"
+  - host: 10.0.1.3
+    port: 4000
+    status_port: 10080
+    numa_node: "0"
+  - host: 10.0.1.3
+    port: 4001
+    status_port: 10081
+    numa_node: "1"
+
+tikv_servers:
+  - host: 10.0.1.7
+    port: 20160
+    status_port: 20180
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv1" }
+  - host: 10.0.1.7
+    port: 20161
+    status_port: 20181
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv1" }
+  - host: 10.0.1.8
+    port: 20160
+    status_port: 20180
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv2" }
+  - host: 10.0.1.8
+    port: 20161
+    status_port: 20181
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv2" }
+  - host: 10.0.1.9
+    port: 20160
+    status_port: 20180
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv3" }
+  - host: 10.0.1.9
+    port: 20161
+    status_port: 20181
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv3" }
+
+monitoring_servers:
+  - host: 10.0.1.10
+
+grafana_servers:
+  - host: 10.0.1.10
+
+alertmanager_servers:
+  - host: 10.0.1.10
+```
+
+</details>
+
+<details>
+<summary>详细混部配置模板</summary>
+
+```yaml
+# # Global variables are applied to all deployments and used as the default value of
+# # the deployments if a specific deployment value is missing.
+global:
+  user: "tidb"
+  ssh_port: 22
+  deploy_dir: "/tidb-deploy"
+  data_dir: "/tidb-data"
+
+monitored:
+  node_exporter_port: 9100
+  blackbox_exporter_port: 9115
+  deploy_dir: "/tidb-deploy/monitored-9100"
+  data_dir: "/tidb-data/monitored-9100"
+  log_dir: "/tidb-deploy/monitored-9100/log"
+
+server_configs:
+  tidb:
+    log.slow-threshold: 300
+  tikv:
+    readpool.unified.max-thread-count: <The value refers to the calculation formula result of the multi-instance topology document.>
+    readpool.storage.use-unified-pool: false
+    readpool.coprocessor.use-unified-pool: true
+    storage.block-cache.capacity: "<The value refers to the calculation formula result of the multi-instance topology document.>"
+    raftstore.capacity: "<The value refers to the calculation formula result of the multi-instance topology document.>"
+  pd:
+    replication.location-labels: ["host"]
+    schedule.leader-schedule-limit: 4
+    schedule.region-schedule-limit: 2048
+    schedule.replica-schedule-limit: 64
+
+pd_servers:
+  - host: 10.0.1.4
+  - host: 10.0.1.5
+  - host: 10.0.1.6
+
+tidb_servers:
+  - host: 10.0.1.1
+    port: 4000
+    status_port: 10080
+    deploy_dir: "/tidb-deploy/tidb-4000"
+    log_dir: "/tidb-deploy/tidb-4000/log"
+    numa_node: "0"
+  - host: 10.0.1.1
+    port: 4001
+    status_port: 10081
+    deploy_dir: "/tidb-deploy/tidb-4001"
+    log_dir: "/tidb-deploy/tidb-4001/log"
+    numa_node: "1"
+  - host: 10.0.1.2
+    port: 4000
+    status_port: 10080
+    deploy_dir: "/tidb-deploy/tidb-4000"
+    log_dir: "/tidb-deploy/tidb-4000/log"
+    numa_node: "0"
+  - host: 10.0.1.2
+    port: 4001
+    status_port: 10081
+    deploy_dir: "/tidb-deploy/tidb-4001"
+    log_dir: "/tidb-deploy/tidb-4001/log"
+    numa_node: "1"
+  - host: 10.0.1.3
+    port: 4000
+    status_port: 10080
+    deploy_dir: "/tidb-deploy/tidb-4000"
+    log_dir: "/tidb-deploy/tidb-4000/log"
+    numa_node: "0"
+  - host: 10.0.1.3
+    port: 4001
+    status_port: 10081
+    deploy_dir: "/tidb-deploy/tidb-4001"
+    log_dir: "/tidb-deploy/tidb-4001/log"
+    numa_node: "1"
+
+tikv_servers:
+  - host: 10.0.1.7
+    port: 20160
+    status_port: 20180
+    deploy_dir: "/tidb-deploy/tikv-20160"
+    data_dir: "/tidb-data/tikv-20160"
+    log_dir: "/tidb-deploy/tikv-20160/log"
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv1" }
+  - host: 10.0.1.7
+    port: 20161
+    status_port: 20181
+    deploy_dir: "/tidb-deploy/tikv-20161"
+    data_dir: "/tidb-data/tikv-20161"
+    log_dir: "/tidb-deploy/tikv-20161/log"
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv1" }
+  - host: 10.0.1.8
+    port: 20160
+    status_port: 20180
+    deploy_dir: "/tidb-deploy/tikv-20160"
+    data_dir: "/tidb-data/tikv-20160"
+    log_dir: "/tidb-deploy/tikv-20160/log"
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv2" }
+  - host: 10.0.1.8
+    port: 20161
+    status_port: 20181
+    deploy_dir: "/tidb-deploy/tikv-20161"
+    data_dir: "/tidb-data/tikv-20161"
+    log_dir: "/tidb-deploy/tikv-20161/log"
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv2" }
+  - host: 10.0.1.9
+    port: 20160
+    status_port: 20180
+    deploy_dir: "/tidb-deploy/tikv-20160"
+    data_dir: "/tidb-data/tikv-20160"
+    log_dir: "/tidb-deploy/tikv-20160/log"
+    numa_node: "0"
+    config:
+      server.labels: { host: "tikv3" }
+  - host: 10.0.1.9
+    port: 20161
+    status_port: 20181
+    deploy_dir: "/tidb-deploy/tikv-20161"
+    data_dir: "/tidb-data/tikv-20161"
+    log_dir: "/tidb-deploy/tikv-20161/log"
+    numa_node: "1"
+    config:
+      server.labels: { host: "tikv3" }
+
+monitoring_servers:
+  - host: 10.0.1.10
+    # ssh_port: 22
+    # port: 9090
+    # deploy_dir: "/tidb-deploy/prometheus-8249"
+    # data_dir: "/tidb-data/prometheus-8249"
+    # log_dir: "/tidb-deploy/prometheus-8249/log"
+
+grafana_servers:
+  - host: 10.0.1.10
+    # port: 3000
+    # deploy_dir: /tidb-deploy/grafana-3000
+
+alertmanager_servers:
+  - host: 10.0.1.10
+    # ssh_port: 22
+    # web_port: 9093
+    # cluster_port: 9094
+    # deploy_dir: "/tidb-deploy/alertmanager-9093"
+    # data_dir: "/tidb-data/alertmanager-9093"
+    # log_dir: "/tidb-deploy/alertmanager-9093/log"
+```
+
+</details>
 
 以上 TiDB 集群拓扑文件中，详细的配置项说明见[通过 TiUP 部署 TiDB 集群的拓扑文件配置](/tiup/tiup-cluster-topology-reference.md)。
 
@@ -48,12 +309,6 @@ aliases: ['/docs-cn/dev/hybrid-deployment-topology/']
 
     - storage CF (all RocksDB column families) 内存自适应，配置 `storage.block-cache.capacity` 参数即可实现 CF 之间自动平衡内存使用。
 
-        - `storage.block-cache` 默认开启 CF 自适应，无需修改。
-
-            ```yaml
-            storage.block-cache.shared: true
-            ```
-
         - 计算公式如下：
 
             ```
@@ -68,7 +323,7 @@ aliases: ['/docs-cn/dev/hybrid-deployment-topology/']
 
 - label 调度配置
 
-    由于采用单机多实例部署 TiKV，为了避免物理机宕机导致 Region Group 默认 3 副本的 2 副本丢失，导致集群不可用的问题，可以通过 label 来实现 PD 智能调度，保证同台机器的多 TiKV 实例不会出现 Region Group 只有 2 副本的情况。
+    当多个 TiKV 实例部署在同一台物理机上时，机器故障可能会导致某个 Raft Group 丢失其默认 3 个副本中的 2 个副本，从而导致该 Raft Group 不可用。配置 host 级别的 label 后，PD 可以将副本分散到不同的物理机上，以降低这种风险。
 
     - TiKV 配置
 
@@ -91,15 +346,14 @@ aliases: ['/docs-cn/dev/hybrid-deployment-topology/']
 
 - `numa_node` 绑核
 
-    - 在实例参数模块配置对应的 `numa_node` 参数，并添加对应的物理 CPU 的核数；
-
+    - 在实例配置中，将 `numa_node` 设置为 NUMA 节点 ID，例如 `"0"` 或 `"0,1"`。
     - numa 绑核使用前，确认已经安装 numactl 工具，以及物理机对应的物理机 CPU 的信息后，再进行参数配置；
 
-    - `numa_node` 这个配置参数与 `numactl --membind` 配置对应。
+    - 配置 `numa_node` 后，TiUP 会通过 `numactl` 将该实例的 CPU 和内存绑定到指定的 NUMA 节点。
 
 > **注意：**
 >
 > - 编辑配置文件模版时，注意修改必要参数、IP、端口及目录。
 > - 各个组件的 deploy_dir，默认会使用 global 中的 `<deploy_dir>/<components_name>-<port>`。例如 tidb 端口指定 4001，则 deploy_dir 默认为 '/tidb-deploy/tidb-4001'。因此，在多实例场景下指定非默认端口时，无需再次指定目录。
 > - 无需手动创建配置文件中的 `tidb` 用户，TiUP cluster 组件会在部署主机上自动创建该用户。可以自定义用户，也可以和中控机的用户保持一致。
-> - 如果部署目录配置为相对路径，会部署在用户家目录下。
+> - 如果部署目录配置为相对路径，会部署在用户的 Home 目录下。

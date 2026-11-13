@@ -1,6 +1,7 @@
 ---
 title: TiUP 术语及核心概念
 aliases: ['/docs-cn/dev/tiup/tiup-terminology-and-concepts/']
+summary: TiUP 是一个用于下载、更新、卸载组件的程序，通过各种组件来扩展其功能。组件是可以运行的程序或脚本，通过 tiup <component> 命令来运行。TiUP 组件可以从镜像仓库下载，用户可以通过设置 TIUP_MIRRORS 环境变量来自定义镜像仓库。
 ---
 
 # TiUP 术语及核心概念
@@ -26,7 +27,7 @@ TiUP 程序只包含少数几个命令，用来下载、更新、卸载组件。
 
 ## TiUP 镜像仓库
 
-TiUP 的所有组件都从镜像仓库 (mirrors) 下载，镜像仓库包含各个组件的 TAR 包以及对应的元信息（版本、入口启动文件、校验和）。TiUP 默认使用 PingCAP 官方的镜像仓库。用户可以通过 `TIUP_MIRRORS` 环境变量自定义镜像仓库。
+TiUP 的所有组件都从镜像仓库 (mirrors) 下载，镜像仓库包含各个组件的 TAR 包以及对应的元信息（版本、入口启动文件、校验和）。TiUP 默认使用 {{{ .company }}} 官方的镜像仓库。用户可以通过 `TIUP_MIRRORS` 环境变量自定义镜像仓库。
 
 镜像仓库可以是本地文件目录或在线 HTTP 服务器：
 

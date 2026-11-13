@@ -1,5 +1,6 @@
 ---
 title: TiDB 4.0.13 Release Notes
+summary: TiDB 4.0.13 发布，新增 `AUTO_INCREMENT` 变更为 `AUTO_RANDOM` 功能，引入 `infoschema.client_errors_summary` 表。提升内存中统计信息缓存，减少 CPU 使用率。TiKV 提高 `store used size` 计算准确性，返回更多的 Region 以降低 Region miss。PD 优化 TSO 处理时间统计指标，更新 Dashboard 版本。TiFlash 自动清除过期历史数据。BR 支持备份恢复系统库，检查集群版本和备份数据版本。TiCDC 增加流程控制，清理陈旧临时文件，增加 HTTP 接口调用。修复多个 Bug。
 ---
 
 # TiDB 4.0.13 Release Notes
@@ -46,9 +47,9 @@ TiDB 版本：4.0.13
 
     + TiCDC
 
-        - 为内部处理单元增加流程控制，避免出现内存溢出问题 [#1751](https://github.com/pingcap/ticdc/pull/1751)
-        - 增加 Unified Sorter 清理陈旧临时文件的功能，禁止多个 `cdc` 服务共享 `sort-dir` 目录 [#1741](https://github.com/pingcap/ticdc/pull/1741)
-        - 给 Failpoint 增加 HTTP 接口调用 [#1732](https://github.com/pingcap/ticdc/pull/1732)
+        - 为内部处理单元增加流程控制，避免出现内存溢出问题 [#1751](https://github.com/pingcap/tiflow/pull/1751)
+        - 增加 Unified Sorter 清理陈旧临时文件的功能，禁止多个 `cdc` 服务共享 `sort-dir` 目录 [#1741](https://github.com/pingcap/tiflow/pull/1741)
+        - 给 Failpoint 增加 HTTP 接口调用 [#1732](https://github.com/pingcap/tiflow/pull/1732)
 
 ## Bug 修复
 
@@ -133,9 +134,9 @@ TiDB 版本：4.0.13
 
     + TiCDC
 
-        - 修复当 Sorter 的输入通道卡住时，流控导致的死锁问题 [#1779](https://github.com/pingcap/ticdc/pull/1779)
-        - 修复 TiCDC changefeed 断点卡住导致 TiKV GC safe point 不推进的问题 [#1756](https://github.com/pingcap/ticdc/pull/1756)
-        - 回滚 `explicit_defaults_for_timestamp` 的改动，确保不用 `SUPER` 权限也可以同步数据到 MySQL [#1749](https://github.com/pingcap/ticdc/pull/1749)
+        - 修复当 Sorter 的输入通道卡住时，流控导致的死锁问题 [#1779](https://github.com/pingcap/tiflow/pull/1779)
+        - 修复 TiCDC changefeed 断点卡住导致 TiKV GC safe point 不推进的问题 [#1756](https://github.com/pingcap/tiflow/pull/1756)
+        - 回滚 `explicit_defaults_for_timestamp` 的改动，确保不用 `SUPER` 权限也可以同步数据到 MySQL [#1749](https://github.com/pingcap/tiflow/pull/1749)
 
     + TiDB Lightning
 

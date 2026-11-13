@@ -1,6 +1,7 @@
 ---
 title: TiDB 3.0 GA Release Notes
 aliases: ['/docs-cn/dev/releases/release-3.0-ga/','/docs-cn/dev/releases/3.0-ga/']
+summary: TiDB 3.0 GA 版本于 2019 年 6 月 28 日发布，对应的 TiDB Ansible 版本为 3.0.0。V3.0.0 版本相比 V2.1 在稳定性、易用性、性能和新功能方面有重要改进。新增功能包括窗口函数、视图、分区表、插件系统、悲观锁、SQL Plan Management 等。SQL 优化器和执行引擎也有多项优化，包括对 `NOT EXISTS` 子查询、`Outer Join`、`IN` 子查询、Index Join 等的性能提升。PD 新增了从单个节点重建集群的功能，将 Region 元信息从 etcd 移至 go-leveldb 存储引擎。TiKV 新增了分布式 GC、并行 Resolve Lock、多线程 Raftstore 和 Apply 等功能，以及对 Engine、Server、RaftStore 和 Coprocessor 的优化。Tools 方面 TiDB Lightning 新增了多项功能，TiDB Binlog 新增了多项功能，sync-diff-inspector 也新增了多项功能。TiDB Ansible 升级了监控组件版本，新增了多项监控面板和功能。
 ---
 
 # TiDB 3.0 GA Release Notes
@@ -79,7 +80,7 @@ TiDB Ansible 版本：3.0.0
     - 新增列属性包含 `AUTO_INCREMENT` 时利用 `SHARD_ROW_ID_BITS` 打散行 ID 功能，缓解热点问题
     - 优化无效 DDL 元信息存活时间，使集群升级后一段时间 DDL 操作比较慢的情况变短
 + 事务
-    - 新增悲观事务模型（**实验特性**）
+    - 新增悲观事务模式（**实验特性**）
     - 优化事务处理逻辑，适应更多场景，具体如下：
         - `tidb_disable_txn_auto_retry` 的默认值为 `on` ，即不会重试非自动提交的事务
         - 新增 `tidb_batch_commit` 系统变量控制将事务拆分成多个事务并发执行
@@ -154,7 +155,7 @@ TiDB Ansible 版本：3.0.0
 - 新增批量接收和发送 Raft 消息功能，写入密集的场景 TPS 提升 7%
 - 新增 Apply snapshot 之前检查 RocksDB level 0 文件的优化，避免产生 Write stall
 - 新增 Titan 存储引擎插件，提升 Value 超过 1KiB 时系统的性能，一定程度上缓解写放大问题（**实验特性**）
-- 新增悲观事务模型（**实验特性**）
+- 新增悲观事务模式（**实验特性**）
 - 新增通过 HTTP 方式获取监控信息功能
 - 修改 Insert 语义，仅在 Key 不存在的时候 Prewrite 才成功
 - 制定日志格式规范，重构日志系统，方便工具收集分析

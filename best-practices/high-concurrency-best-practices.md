@@ -1,7 +1,7 @@
 ---
 title: TiDB 高并发写入场景最佳实践
 summary: 了解 TiDB 在高并发写入场景下的最佳实践。
-aliases: ['/docs-cn/dev/best-practices/high-concurrency-best-practices/','/docs-cn/dev/reference/best-practices/high-concurrency/']
+aliases: ['/docs-cn/dev/best-practices/high-concurrency-best-practices/','/docs-cn/dev/reference/best-practices/high-concurrency/','/zh/tidb/stable/high-concurrency-best-practices/','/zh/tidb/dev/high-concurrency-best-practices/']
 ---
 
 # TiDB 高并发写入场景最佳实践
@@ -10,7 +10,7 @@ aliases: ['/docs-cn/dev/best-practices/high-concurrency-best-practices/','/docs-
 
 ## 目标读者
 
-本文假设你已对 TiDB 有一定的了解，推荐先阅读 TiDB 原理相关的三篇文章（[讲存储](https://pingcap.com/blog-cn/tidb-internal-1/)，[说计算](https://pingcap.com/blog-cn/tidb-internal-2/)，[谈调度](https://pingcap.com/blog-cn/tidb-internal-3/)），以及 [TiDB Best Practice](https://pingcap.com/blog-cn/tidb-best-practice/)。
+本文假设你已对 TiDB 有一定的了解，推荐先阅读 TiDB 原理相关的三篇文章（[讲存储](https://pingkai.cn/tidbcommunity/blog/dbe4f467)，[说计算](https://pingkai.cn/tidbcommunity/blog/8427565a)，[谈调度](https://pingkai.cn/tidbcommunity/blog/a558961f)），以及 [TiDB Best Practice](https://pingkai.cn/tidbcommunity/blog/7f818fc0)。
 
 ## 高并发批量插入场景
 
@@ -29,13 +29,13 @@ aliases: ['/docs-cn/dev/best-practices/high-concurrency-best-practices/','/docs-
 
 ## TiDB 数据分布原理
 
-如果要解决以上挑战，需要从 TiDB 数据切分以及调度的原理开始讲起。这里只作简单说明，详情可参阅[谈调度](https://pingcap.com/blog-cn/tidb-internal-3/)。
+如果要解决以上挑战，需要从 TiDB 数据切分以及调度的原理开始讲起。这里只作简单说明，详情可参阅[谈调度](https://pingkai.cn/tidbcommunity/blog/a558961f)。
 
 TiDB 以 Region 为单位对数据进行切分，每个 Region 有大小限制（默认 96M）。Region 的切分方式是范围切分。每个 Region 会有多副本，每一组副本，称为一个 Raft Group。每个 Raft Group 中由 Leader 负责执行这块数据的读 & 写（TiDB 支持 [Follower-Read](/follower-read.md)）。Leader 会自动地被 PD 组件均匀调度在不同的物理节点上，用以均分读写压力。
 
 ![TiDB 数据概览](/media/best-practices/tidb-data-overview.png)
 
-只要业务的写入没有 `AUTO_INCREMENT` 的主键，或没有单调递增的索引（即没有业务上的写入热点，更多细节可参阅 [TiDB 正确使用方式](https://zhuanlan.zhihu.com/p/25574778)），从原理上来说，TiDB 依靠这个架构可具备线性扩展的读写能力，并且可以充分利用分布式资源。从这一点看，TiDB 尤其适合高并发批量写入场景的业务。
+从原理上来说，只要没有业务上的写入热点（即业务写入没有 `AUTO_INCREMENT` 的主键和单调递增的索引，更多细节可参阅 [TiDB 正确使用方式](https://zhuanlan.zhihu.com/p/25574778)），依靠这个架构，TiDB 不仅具备线性扩展的读写能力，也能够充分利用分布式资源。从这一点看，TiDB 尤其适合高并发批量写入场景的业务。
 
 但理论场景和实际情况往往存在不同。以下实例说明了热点是如何产生的。
 
@@ -57,7 +57,25 @@ CREATE TABLE IF NOT EXISTS TEST_HOTSPOT(
 {{< copyable "sql" >}}
 
 ```sql
-INSERT INTO TEST_HOTSPOT(id, age, user_name, email) values(%v, %v, '%v', '%v');
+SET SESSION cte_max_recursion_depth = 1000000;
+INSERT INTO TEST_HOTSPOT
+SELECT
+  n,                                       -- ID
+  RAND()*80,                               -- 0 到 80 之间的随机数
+  CONCAT('user-',n),
+  CONCAT(
+    CHAR(65 + (RAND() * 25) USING ascii),  -- 65 到 65+25 之间的随机数，转换为一个 A-Z 字符
+    '-user-',
+    n,
+    '@example.com'
+  )
+FROM
+  (WITH RECURSIVE nr(n) AS
+    (SELECT 1                              -- 从 1 开始 CTE
+      UNION ALL SELECT n + 1               -- 每次循环 n 增加 1
+      FROM nr WHERE n < 1000000            -- 当 n 为 1_000_000 时停止循环
+    ) SELECT n FROM nr
+  ) a;
 ```
 
 负载是短时间内密集地执行以上写入语句。
@@ -142,18 +160,24 @@ SPLIT TABLE TEST_HOTSPOT BETWEEN (0) AND (9223372036854775807) REGIONS 128;
 
 切分完成以后，可以通过 `SHOW TABLE test_hotspot REGIONS;` 语句查看打散的情况。如果 `SCATTERING` 列值全部为 `0`，代表调度成功。
 
-也可以通过 [table-regions.py](https://github.com/pingcap/tidb-ansible/blob/dabf60baba5e740a4bee9faf95e77563d8084be1/scripts/table-regions.py) 脚本，查看 Region 的分布。目前分布已经比较均匀了：
+也可以通过以下 SQL 语句查看 Region 的分布。你需要将 `table_name` 替换为实际的表名。
 
-```
-[root@172.16.4.4 scripts]# python table-regions.py --host 172.16.4.3 --port 31453 test test_hotspot
-[RECORD - test.test_hotspot] - Leaders Distribution:
-  total leader count: 127
-  store: 1, num_leaders: 21, percentage: 16.54%
-  store: 4, num_leaders: 20, percentage: 15.75%
-  store: 6, num_leaders: 21, percentage: 16.54%
-  store: 46, num_leaders: 21, percentage: 16.54%
-  store: 82, num_leaders: 23, percentage: 18.11%
-  store: 62, num_leaders: 21, percentage: 16.54%
+{{< copyable "sql" >}}
+
+```sql
+SELECT
+    p.STORE_ID,
+    COUNT(s.REGION_ID) PEER_COUNT
+FROM
+    INFORMATION_SCHEMA.TIKV_REGION_STATUS s
+    JOIN INFORMATION_SCHEMA.TIKV_REGION_PEERS p ON s.REGION_ID = p.REGION_ID
+WHERE
+    TABLE_NAME = 'table_name'
+    AND p.is_leader = 1
+GROUP BY
+    p.STORE_ID
+ORDER BY
+    PEER_COUNT DESC;
 ```
 
 再重新运行写入负载：
@@ -184,7 +208,7 @@ SPLIT TABLE TEST_HOTSPOT BETWEEN (0) AND (9223372036854775807) REGIONS 128;
 
 以下全局变量会影响 `PRE_SPLIT_REGIONS` 的行为，需要特别注意：
 
-+ `tidb_scatter_region`：该变量用于控制建表完成后是否等待预切分和打散 Region 完成后再返回结果。如果建表后有大批量写入，需要设置该变量值为 `1`，表示等待所有 Region 都切分和打散完成后再返回结果给客户端。否则未打散完成就进行写入会对写入性能影响有较大的影响。
++ [`tidb_scatter_region`](/system-variables.md#tidb_scatter_region)：该变量用于控制建表完成后是否等待预切分和打散 Region 完成后再返回结果。如果建表后有大批量写入，需要设置该变量值为 `global`，表示等待所有 Region 都切分和打散完成后再返回结果给客户端。否则未打散完成就进行写入会对写入性能影响有较大的影响。
 
 示例：
 
@@ -207,7 +231,7 @@ create table t (a int, b int) SHARD_ROW_ID_BITS = 4 PRE_SPLIT_REGIONS=3;
 
 ## 参数配置
 
-TiDB 2.1 版本中在 SQL 层引入了 [latch 机制](/tidb-configuration-file.md#txn-local-latches)，用于在写入冲突比较频繁的场景中提前发现事务冲突，减少 TiDB 和 TiKV 事务提交时写写冲突导致的重试。通常，跑批场景使用的是存量数据，所以并不存在事务的写入冲突。可以把 TiDB 的 latch 功能关闭，以减少为细小对象分配内存：
+TiDB 2.1 版本中在 SQL 层引入了 latch 机制，用于在写入冲突比较频繁的场景中提前发现事务冲突，减少 TiDB 和 TiKV 事务提交时写写冲突导致的重试。通常，跑批场景使用的是存量数据，所以并不存在事务的写入冲突。可以把 TiDB 的 latch 功能关闭，以减少为细小对象分配内存：
 
 ```
 [txn-local-latches]

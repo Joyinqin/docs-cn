@@ -10,7 +10,7 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 ## 在 TiKV 部署目标机器上添加数据盘 EXT4 文件系统挂载参数
 
-生产环境部署，建议使用 EXT4 类型文件系统的 NVME 类型的 SSD 磁盘存储 TiKV 数据文件。这个配置方案为最佳实施方案，其可靠性、安全性、稳定性已经在大量线上场景中得到证实。
+生产环境部署，建议使用 EXT4 类型文件系统的 NVMe 类型的 SSD 磁盘存储 TiKV 数据文件。这个配置方案为最佳实施方案，其可靠性、安全性、稳定性已经在大量线上场景中得到证实。
 
 使用 `root` 用户登录目标机器，将部署目标机器数据盘格式化成 ext4 文件系统，挂载时添加 `nodelalloc` 和 `noatime` 挂载参数。`nodelalloc` 是必选参数，否则 TiUP 安装时检测无法通过；`noatime` 是可选建议参数。
 
@@ -22,8 +22,6 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 1. 查看数据盘。
 
-    {{< copyable "shell-root" >}}
-
     ```bash
     fdisk -l
     ```
@@ -34,19 +32,22 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 2. 创建分区。
 
-    {{< copyable "shell-root" >}}
-
     ```bash
     parted -s -a optimal /dev/nvme0n1 mklabel gpt -- mkpart primary ext4 1 -1
     ```
 
+    如果 NVMe 设备容量较大，可以创建多个分区。
+
+    ```bash
+    parted -s -a optimal /dev/nvme0n1 mklabel gpt -- mkpart primary ext4 1 2000GB
+    parted -s -a optimal /dev/nvme0n1 -- mkpart primary ext4 2000GB -1
+    ```
+
     > **注意：**
     >
-    > 使用 `lsblk` 命令查看分区的设备号：对于 nvme 磁盘，生成的分区设备号一般为 `nvme0n1p1`；对于普通磁盘（例如 `/dev/sdb`），生成的的分区设备号一般为 `sdb1`。
+    > 使用 `lsblk` 命令查看分区的设备号：对于 NVMe 磁盘，生成的分区设备号一般为 `nvme0n1p1`；对于普通磁盘（例如 `/dev/sdb`），生成的分区设备号一般为 `sdb1`。
 
 3. 格式化文件系统。
-
-    {{< copyable "shell-root" >}}
 
     ```bash
     mkfs.ext4 /dev/nvme0n1p1
@@ -55,8 +56,6 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 4. 查看数据盘分区 UUID。
 
     本例中 `nvme0n1p1` 的 UUID 为 `c51eb23b-195c-4061-92a9-3fad812cc12f`。
-
-    {{< copyable "shell-root" >}}
 
     ```bash
     lsblk -f
@@ -75,8 +74,6 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 5. 编辑 `/etc/fstab` 文件，添加 `nodelalloc` 挂载参数。
 
-    {{< copyable "shell-root" >}}
-
     ```bash
     vi /etc/fstab
     ```
@@ -87,16 +84,13 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 6. 挂载数据盘。
 
-    {{< copyable "shell-root" >}}
-
     ```bash
     mkdir /data1 && \
+    systemctl daemon-reload && \
     mount -a
     ```
 
 7. 执行以下命令，如果文件系统为 ext4，并且挂载参数中包含 `nodelalloc`，则表示已生效。
-
-    {{< copyable "shell-root" >}}
 
     ```bash
     mount -t ext4
@@ -108,42 +102,100 @@ aliases: ['/docs-cn/dev/check-before-deployment/']
 
 ## 检测及关闭系统 swap
 
-本段介绍 swap 关闭方法。TiDB 运行需要有足够的内存，并且不建议使用 swap 作为内存不足的缓冲，这会降低性能。因此建议永久关闭系统 swap，并且不要使用 `swapoff -a` 方式关闭，否则重启机器后该操作会失效。
+将 TiDB 使用的内存换出 (swapped out) 到磁盘后再换入 (swapped back in)，可能会导致延迟激增。为保持稳定的性能，建议永久禁用系统 swap。但如果主机内存偏小，禁用 swap 可能更容易触发内存不足 (out-of-memory, OOM) 问题。请根据内存容量和延迟要求，选择以下方案之一：
 
-建议执行以下命令关闭系统 swap：
+- 方案一：禁用 swap，适用于对延迟敏感的工作负载。
 
-{{< copyable "shell-regular" >}}
+    1. 安装操作系统时，不创建 swap 分区或 swap 文件。如果已经启用 swap，请先确认可用内存足以容纳已换出的数据，再执行以下命令禁用：
 
-```bash
-echo "vm.swappiness = 0">> /etc/sysctl.conf
-swapoff -a && swapon -a
-sysctl -p
-```
+        ```bash
+        swapoff -a
+        ```
 
-## 检测及关闭目标部署机器的防火墙
+    2. 为防止系统启动时启用 swap，请删除或注释掉 `/etc/fstab` 中的所有 swap 条目。
 
-本段介绍如何关闭目标主机防火墙配置，因为在 TiDB 集群中，需要将节点间的访问端口打通才可以保证读写请求、数据心跳等信息的正常的传输。在普遍线上场景中，数据库到业务服务和数据库节点的网络联通都是在安全域内完成数据交互。如果没有特殊安全的要求，建议将目标节点的防火墙进行关闭。否则建议[按照端口使用规则](/hardware-and-software-requirements.md#网络要求)，将端口信息配置到防火墙服务的白名单中。
+        在使用 `systemd-gpt-auto-generator` 的主机上，即使 `/etc/fstab` 中没有对应条目，与根分区位于同一磁盘上的 GPT swap 分区也可能被自动启用。在这些主机上，执行以下命令列出 swap 单元文件：
+
+        ```bash
+        systemctl list-unit-files --type=swap
+        ```
+
+        对每个需要永久禁用的 swap 单元，执行以下命令以防止自动启用。将 `<swap-unit>` 替换为输出中的实际单元名称，例如 `dev-sda2.swap`：
+
+        ```bash
+        systemctl mask <swap-unit>
+        ```
+
+        更多信息，请参阅 [systemd-gpt-auto-generator](https://www.freedesktop.org/software/systemd/man/latest/systemd-gpt-auto-generator.html) 和 [systemctl mask](https://www.freedesktop.org/software/systemd/man/latest/systemctl.html)。
+
+    3. 禁用 swap 后，以及下次重启后，分别执行 `cat /proc/swaps` 进行验证。如果 swap 已禁用，输出应仅包含表头行。
+
+- 方案二：保留 swap，并降低内核使用 swap 的倾向，适用于主机内存较小的场景。
+
+    设置 `vm.swappiness=0` 可降低内核使用 swap 的倾向。此设置不会禁用 swap：内核在内存紧张时仍可能使用 swap。执行以下命令，将设置保存到 `/etc/sysctl.conf` 并使其立即生效：
+
+    ```bash
+    echo "vm.swappiness = 0">> /etc/sysctl.conf
+    sysctl -p
+    ```
+
+## 设置 TiDB 节点的临时空间（推荐）
+
+TiDB 的部分操作需要向服务器写入临时文件，因此需要确保运行 TiDB 的操作系统用户具有足够的权限对目标目录进行读写。如果 TiDB 实例不是以 `root` 权限启动，则需要检查目录权限并进行正确设置。
+
+- TiDB 临时工作区
+
+    哈希表构建、排序等内存消耗较大的操作可能会向磁盘写入临时数据，用来减少内存消耗，提升稳定性。写入的磁盘位置由配置项 [`tmp-storage-path`](/tidb-configuration-file.md#tmp-storage-path) 定义。在默认设置下，确保运行 TiDB 的用户对操作系统临时文件夹（通常为 `/tmp`）有读写权限。
+
+- Fast Online DDL 工作区
+
+    当变量 [`tidb_ddl_enable_fast_reorg`](/system-variables.md#tidb_ddl_enable_fast_reorg-从-v630-版本开始引入) 被设置为 `ON`（v6.5.0 及以上版本中默认值为 `ON`）时，会激活 Fast Online DDL，这时部分 DDL 要对临时文件进行读写。临时文件位置由配置 [`temp-dir`](/tidb-configuration-file.md#temp-dir-从-v630-版本开始引入) 定义，需要确保运行 TiDB 的用户对操作系统中该目录有读写权限。默认目录 `/tmp/tidb` 使用 tmpfs (temporary file system)，建议显式指定为磁盘上的目录，以 `/data/tidb-deploy/tempdir` 为例：
+
+    > **注意：**
+    >
+    > 如果业务中可能存在针对大对象的 DDL 操作，推荐为 [`temp-dir`](/tidb-configuration-file.md#temp-dir-从-v630-版本开始引入) 配置独立文件系统及更大的临时空间。
+
+    以下示例假设 TiDB 以 `tidb` 用户和用户组运行，且该用户和用户组已在各 TiDB 目标节点上存在。如果使用其他账户，请相应替换命令中的用户和用户组，并与拓扑配置中的 `global.user` 和 `global.group` 保持一致。
+
+    如果依赖 TiUP 自动创建运行账户，请在 `tiup cluster deploy` 完成后、首次执行 `tiup cluster start` 前执行以下目录创建和权限设置命令。
+
+    ```shell
+    sudo install -d -o tidb -g tidb -m 700 /data/tidb-deploy/tempdir
+    ```
+
+    如果目录 `/data/tidb-deploy/tempdir` 已经存在，请将其所有权授予运行 TiDB 的用户，并移除其他用户的访问权限：
+
+    ```shell
+    sudo chown -R tidb:tidb /data/tidb-deploy/tempdir
+    sudo chmod -R u=rwX,go= /data/tidb-deploy/tempdir
+    ```
+
+    > **注意：**
+    >
+    > 如果目录不存在，TiDB 在启动时会自动创建该目录。如果目录创建失败，或者 TiDB 对该目录没有读写权限，[Fast Online DDL](/system-variables.md#tidb_ddl_enable_fast_reorg-从-v630-版本开始引入) 在运行时会被禁用。
+
+## 检测目标部署机器的防火墙
+
+在 TiDB 集群中，必须将节点间的访问端口打通才可以保证读写请求、数据心跳等信息的正常的传输。在普遍线上场景中，数据库到业务服务和数据库节点的网络联通都是在安全域内完成数据交互。如果没有特殊安全的要求，建议将目标节点的防火墙进行关闭。如不关闭防火墙，建议[按照端口使用规则](/hardware-and-software-requirements.md#网络要求)，将端口信息配置到防火墙服务的白名单中。
+
+### 停止并禁用防火墙
+
+本节介绍如何停止并禁用目标部署机器的防火墙服务。
 
 1. 检查防火墙状态（以 CentOS Linux release 7.7.1908 (Core) 为例）
-
-    {{< copyable "shell-regular" >}}
 
     ```shell
     sudo firewall-cmd --state
     sudo systemctl status firewalld.service
     ```
 
-2. 关闭防火墙服务
-
-    {{< copyable "shell-regular" >}}
+2. 停止防火墙服务
 
     ```bash
     sudo systemctl stop firewalld.service
     ```
 
-3. 关闭防火墙自动启动服务
-
-    {{< copyable "shell-regular" >}}
+3. 禁用防火墙自动启动服务
 
     ```bash
     sudo systemctl disable firewalld.service
@@ -151,11 +203,96 @@ sysctl -p
 
 4. 检查防火墙状态
 
-    {{< copyable "shell-regular" >}}
-
     ```bash
     sudo systemctl status firewalld.service
     ```
+
+### 更改防火墙区域
+
+如果不希望完全禁用防火墙，可以使用限制较少的区域。默认的 `public` 区域仅允许特定的服务和端口，而 `trusted` 区域默认允许所有流量。
+
+将默认区域设置为 `trusted`：
+
+```bash
+firewall-cmd --set-default-zone trusted
+```
+
+查看默认区域：
+
+```bash
+firewall-cmd --get-default-zone
+# trusted
+```
+
+列出某个区域的策略：
+
+```bash
+firewall-cmd --zone=trusted --list-all
+# trusted
+#   target: ACCEPT
+#   icmp-block-inversion: no
+#   interfaces:
+#   sources:
+#   services:
+#   ports:
+#   protocols:
+#   forward: yes
+#   masquerade: no
+#   forward-ports:
+#   source-ports:
+#   icmp-blocks:
+#   rich rules:
+```
+
+### 配置防火墙
+
+使用以下命令为 TiDB 集群组件配置防火墙。这些示例仅供参考，请根据实际环境调整区域名称、端口和服务。
+
+为 TiDB 组件配置防火墙：
+
+```bash
+firewall-cmd --permanent --new-service tidb
+firewall-cmd --permanent --service tidb --set-description="TiDB Server"
+firewall-cmd --permanent --service tidb --set-short="TiDB"
+firewall-cmd --permanent --service tidb --add-port=4000/tcp
+firewall-cmd --permanent --service tidb --add-port=10080/tcp
+firewall-cmd --permanent --zone=public --add-service=tidb
+```
+
+为 TiKV 组件配置防火墙：
+
+```bash
+firewall-cmd --permanent --new-service tikv
+firewall-cmd --permanent --service tikv --set-description="TiKV Server"
+firewall-cmd --permanent --service tikv --set-short="TiKV"
+firewall-cmd --permanent --service tikv --add-port=20160/tcp
+firewall-cmd --permanent --service tikv --add-port=20180/tcp
+firewall-cmd --permanent --zone=public --add-service=tikv
+```
+
+为 PD 组件配置防火墙：
+
+```bash
+firewall-cmd --permanent --new-service pd
+firewall-cmd --permanent --service pd --set-description="PD Server"
+firewall-cmd --permanent --service pd --set-short="PD"
+firewall-cmd --permanent --service pd --add-port=2379/tcp
+firewall-cmd --permanent --service pd --add-port=2380/tcp
+firewall-cmd --permanent --zone=public --add-service=pd
+```
+
+为 Prometheus 配置防火墙：
+
+```bash
+firewall-cmd --permanent --zone=public --add-service=prometheus
+firewall-cmd --permanent --service=prometheus --add-port=12020/tcp
+```
+
+为 Grafana 配置防火墙：
+
+```bash
+firewall-cmd --permanent --zone=public --add-service=grafana
+```
 
 ## 检测及安装 NTP 服务
 
@@ -164,8 +301,6 @@ TiDB 是一套分布式数据库系统，需要节点间保证时间的同步，
 采用如下步骤检查是否安装 NTP 服务以及与 NTP 服务器正常同步：
 
 1. 执行以下命令，如果输出 `running` 表示 NTP 服务正在运行：
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     sudo systemctl status ntpd.service
@@ -179,10 +314,8 @@ TiDB 是一套分布式数据库系统，需要节点间保证时间的同步，
 
     - 若返回报错信息 `Unit ntpd.service could not be found.`，请尝试执行以下命令，以查看与 NTP 进行时钟同步所使用的系统配置是 `chronyd` 还是 `ntpd`：
 
-        {{< copyable "shell-regular" >}}
-
         ```bash
-        sudo systemctl status cronyd.service
+        sudo systemctl status chronyd.service
         ```
 
         ```
@@ -191,15 +324,15 @@ TiDB 是一套分布式数据库系统，需要节点间保证时间的同步，
         Active: active (running) since Mon 2021-04-05 09:55:29 EDT; 3 days ago
         ```
 
-        如果你使用的系统配置是 `chronyd`，请直接执行以下的步骤 3。
+      若发现系统既没有配置 `chronyd` 也没有配置 `ntpd`，则表示系统尚未安装任一服务。此时，应先安装其中一个服务，并保证它可以自动启动，默认使用 `ntpd`。
+
+        如果你使用的系统配置是 `chronyd`，请直接执行步骤 3。
 
 2. 执行 `ntpstat` 命令检测是否与 NTP 服务器同步：
 
     > **注意：**
     >
     > Ubuntu 系统需安装 `ntpstat` 软件包。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     ntpstat
@@ -230,8 +363,6 @@ TiDB 是一套分布式数据库系统，需要节点间保证时间的同步，
     > **注意：**
     >
     > 该操作仅适用于使用 Chrony 的系统，不适用于使用 NTPd 的系统。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     chronyc tracking
@@ -269,8 +400,6 @@ TiDB 是一套分布式数据库系统，需要节点间保证时间的同步，
 
 如果要使 NTP 服务尽快开始同步，执行以下命令。可以将 `pool.ntp.org` 替换为你的 NTP 服务器：
 
-{{< copyable "shell-regular" >}}
-
 ```bash
 sudo systemctl stop ntpd.service && \
 sudo ntpdate pool.ntp.org && \
@@ -278,8 +407,6 @@ sudo systemctl start ntpd.service
 ```
 
 如果要在 CentOS 7 系统上手动安装 NTP 服务，可执行以下命令：
-
-{{< copyable "shell-regular" >}}
 
 ```bash
 sudo yum install ntp ntpdate && \
@@ -291,15 +418,17 @@ sudo systemctl enable ntpd.service
 
 在生产系统的 TiDB 中，建议对操作系统进行如下的配置优化：
 
-1. 关闭透明大页（即 Transparent Huge Pages，缩写为 THP）。数据库的内存访问模式往往是稀疏的而非连续的。当高阶内存碎片化比较严重时，分配 THP 页面会出现较高的延迟。
-2. 将存储介质的 I/O 调度器设置为 noop。对于高速 SSD 存储介质，内核的 I/O 调度操作会导致性能损失。将调度器设置为 noop 后，内核不做任何操作，直接将 I/O 请求下发给硬件，以获取更好的性能。同时，noop 调度器也有较好的普适性。
-3. 为调整 CPU 频率的 cpufreq 模块选用 performance 模式。将 CPU 频率固定在其支持的最高运行频率上，不进行动态调节，可获取最佳的性能。
+- 关闭[内存——透明大页](/tune-operating-system.md#内存透明大页) (Transparent Huge Pages, THP)。数据库的内存访问通常较为稀疏，当高阶内存出现明显碎片化时，THP 分配可能导致较高的内存分配延迟，因此建议关闭 THP 以避免性能抖动。
+- 设置存储介质的 [I/O 调度器](/tune-operating-system.md#io-调度器)。
 
-采用如下步骤检查操作系统的当前配置，并配置系统优化参数：
+    - 对于高速 SSD 存储介质，内核默认的 I/O 调度器可能会导致性能损失。建议将闪存存储的 I/O 调度器设置为先入先出 (First-in-first-out, FIFO) 的调度器，如 `noop` 或 `none`，这样内核将不做调度操作，直接将 I/O 请求传递给硬件，从而提升性能。
+    - 对于 NVMe 存储介质，默认的 I/O 调度器为 `none`，无需进行调整。
+
+- 将动态调整 CPU 频率的 [cpufreq 模块](/tune-operating-system.md#处理器动态节能技术)设置为 `performance` 模式。该模式会将 CPU 频率固定在其支持的最高运行频率上，不进行动态调节，因此可获得最佳性能。
+
+具体的检查和配置步骤如下：
 
 1. 执行以下命令查看透明大页的开启状态。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     cat /sys/kernel/mm/transparent_hugepage/enabled
@@ -313,9 +442,9 @@ sudo systemctl enable ntpd.service
     >
     > `[always] madvise never` 表示透明大页处于启用状态，需要关闭。
 
-2. 执行以下命令查看数据目录所在磁盘的 I/O 调度器。假设在 sdb、sdc 两个磁盘上创建了数据目录。
+2. 执行以下命令查看数据目录所在磁盘的 I/O 调度器。
 
-    {{< copyable "shell-regular" >}}
+    如果数据目录所在磁盘使用的是 SD 或 VD 设备，可以执行以下命令查看当前 I/O 调度器的配置：
 
     ```bash
     cat /sys/block/sd[bc]/queue/scheduler
@@ -330,9 +459,22 @@ sudo systemctl enable ntpd.service
     >
     > `noop [deadline] cfq` 表示磁盘的 I/O 调度器使用 `deadline`，需要进行修改。
 
-3. 执行以下命令查看磁盘的唯一标识 `ID_SERIAL`。
+    如果数据目录使用 NVMe 设备，可以执行以下命令查看 I/O 调度器：
 
-    {{< copyable "shell-regular" >}}
+    ```bash
+    cat /sys/block/nvme[01]*/queue/scheduler
+    ```
+
+    ```
+    [none] mq-deadline kyber bfq
+    [none] mq-deadline kyber bfq
+    ```
+
+    > **注意：**
+    >
+    > `[none] mq-deadline kyber bfq` 表示 NVMe 设备的 I/O 调度器使用 `none`，不需要进行修改。
+
+3. 执行以下命令查看磁盘的唯一标识 `ID_SERIAL`。
 
     ```bash
     udevadm info --name=/dev/sdb | grep ID_SERIAL
@@ -345,11 +487,10 @@ sudo systemctl enable ntpd.service
 
     > **注意：**
     >
-    > 如果多个磁盘都分配了数据目录，需要多次执行以上命令，记录所有磁盘各自的唯一标识。
+    > - 如果多个磁盘都分配了数据目录，需要为每个磁盘都执行以上命令，记录所有磁盘各自的唯一标识。
+    > - 已经使用 `noop` 或者 `none` 调度器的设备不需要记录标识，无需配置 udev 规则和 tuned 策略中的相关内容。
 
 4. 执行以下命令查看 cpufreq 模块选用的节能策略。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     cpupower frequency-info --policy
@@ -370,8 +511,6 @@ sudo systemctl enable ntpd.service
     + 方法一：使用 tuned（推荐）
 
         1. 执行 `tuned-adm list` 命令查看当前操作系统的 tuned 策略。
-
-            {{< copyable "shell-regular" >}}
 
             ```bash
             tuned-adm list
@@ -396,12 +535,27 @@ sudo systemctl enable ntpd.service
 
         2. 创建新的 tuned 策略。
 
-            {{< copyable "shell-regular" >}}
+            先通过本机 `man tuned.conf` 确认自定义策略的默认目录。如果在 `/etc/tuned/tuned-main.conf` 中显式设置了 `profile_dirs`，则以该配置指定的搜索目录为准。根据实际的自定义策略目录，选择下面对应的一组命令执行。如果本机使用其他目录，请将命令中的 `/etc/tuned/` 或 `/etc/tuned/profiles/` 替换为该目录。
+
+            > **注意：**
+            >
+            > TuneD 从 v2.23.0 起将自定义策略的默认目录改为 `/etc/tuned/profiles/`，但部分发行版（例如 RHEL 9、Rocky Linux 9）仍使用 `/etc/tuned/`。因此，不能仅根据 TuneD 版本号选择目录。
+
+            如果自定义策略目录为 `/etc/tuned/`：
 
             ```bash
-            mkdir /etc/tuned/balanced-tidb-optimal/
+            mkdir -p /etc/tuned/balanced-tidb-optimal/
             vi /etc/tuned/balanced-tidb-optimal/tuned.conf
             ```
+
+            如果自定义策略目录为 `/etc/tuned/profiles/`：
+
+            ```bash
+            mkdir -p /etc/tuned/profiles/balanced-tidb-optimal/
+            vi /etc/tuned/profiles/balanced-tidb-optimal/tuned.conf
+            ```
+
+            将以下内容写入 `tuned.conf` 并保存：
 
             ```
             [main]
@@ -420,9 +574,17 @@ sudo systemctl enable ntpd.service
 
             `include=balanced` 表示在现有的 balanced 策略基础上添加操作系统优化配置。
 
+            保存配置后，执行以下命令，确认列表中包含 `balanced-tidb-optimal`。如果未出现，请检查 `tuned.conf` 是否保存在实际策略搜索目录下。
+
+            ```bash
+            tuned-adm list
+            ```
+
         3. 应用新的 tuned 策略。
 
-            {{< copyable "shell-regular" >}}
+            > **注意：**
+            >
+            > 如果已经使用 `noop` 或 `none` I/O 调度器，则无需在 tuned 策略中配置调度器相关的内容，可以跳过此步骤。
 
             ```bash
             tuned-adm profile balanced-tidb-optimal
@@ -436,8 +598,6 @@ sudo systemctl enable ntpd.service
             >
             > 需安装 `grubby` 软件包。
 
-            {{< copyable "shell-regular" >}}
-
             ```bash
             grubby --default-kernel
             ```
@@ -448,19 +608,15 @@ sudo systemctl enable ntpd.service
 
         2. 执行 `grubby --update-kernel` 命令修改内核配置。
 
-            {{< copyable "shell-regular" >}}
-
             ```bash
-            grubby --args="transparent_hugepage=never" --update-kernel /boot/vmlinuz-3.10.0-957.el7.x86_64
+            grubby --args="transparent_hugepage=never" --update-kernel `grubby --default-kernel`
             ```
 
             > **注意：**
             >
-            > `--update-kernel` 后需要使用实际的默认内核版本。
+            > 你也可以在 `--update-kernel` 后指定实际的版本号，例如：`--update-kernel /boot/vmlinuz-3.10.0-957.el7.x86_64` 或 `ALL`。
 
         3. 执行 `grubby --info` 命令查看修改后的默认内核配置。
-
-            {{< copyable "shell-regular" >}}
 
             ```bash
             grubby --info /boot/vmlinuz-3.10.0-957.el7.x86_64
@@ -481,16 +637,12 @@ sudo systemctl enable ntpd.service
 
         4. 修改当前的内核配置立即关闭透明大页。
 
-            {{< copyable "shell-regular" >}}
-
             ```bash
             echo never > /sys/kernel/mm/transparent_hugepage/enabled
             echo never > /sys/kernel/mm/transparent_hugepage/defrag
             ```
 
         5. 配置 udev 脚本应用 IO 调度器策略。
-
-            {{< copyable "shell-regular" >}}
 
             ```bash
             vi /etc/udev/rules.d/60-tidb-schedulers.rules
@@ -504,7 +656,9 @@ sudo systemctl enable ntpd.service
 
         6. 应用 udev 脚本。
 
-            {{< copyable "shell-regular" >}}
+            > **注意：**
+            >
+            > 对于已经使用 `noop` 或 `none` I/O 调度器的设备，无需配置 udev 规则，可以跳过此步骤。
 
             ```bash
             udevadm control --reload-rules
@@ -512,8 +666,6 @@ sudo systemctl enable ntpd.service
             ```
 
         7. 创建 CPU 节能策略配置服务。
-
-            {{< copyable "shell-regular" >}}
 
             ```bash
             cat  >> /etc/systemd/system/cpupower.service << EOF
@@ -529,8 +681,6 @@ sudo systemctl enable ntpd.service
 
         8. 应用 CPU 节能策略配置服务。
 
-            {{< copyable "shell-regular" >}}
-
             ```bash
             systemctl daemon-reload
             systemctl enable cpupower.service
@@ -538,8 +688,6 @@ sudo systemctl enable ntpd.service
             ```
 
 6. 执行以下命令验证透明大页的状态。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     cat /sys/kernel/mm/transparent_hugepage/enabled
@@ -551,8 +699,6 @@ sudo systemctl enable ntpd.service
 
 7. 执行以下命令验证数据目录所在磁盘的 I/O 调度器。
 
-    {{< copyable "shell-regular" >}}
-
     ```bash
     cat /sys/block/sd[bc]/queue/scheduler
     ```
@@ -563,8 +709,6 @@ sudo systemctl enable ntpd.service
     ```
 
 8. 执行以下命令查看 cpufreq 模块选用的节能策略。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     cpupower frequency-info --policy
@@ -578,46 +722,56 @@ sudo systemctl enable ntpd.service
 
 9. 执行以下命令修改 sysctl 参数。
 
-    {{< copyable "shell-regular" >}}
-
     ```bash
     echo "fs.file-max = 1000000">> /etc/sysctl.conf
     echo "net.core.somaxconn = 32768">> /etc/sysctl.conf
-    echo "net.ipv4.tcp_tw_recycle = 0">> /etc/sysctl.conf
     echo "net.ipv4.tcp_syncookies = 0">> /etc/sysctl.conf
     echo "vm.overcommit_memory = 1">> /etc/sysctl.conf
+    echo "vm.min_free_kbytes = 1048576">> /etc/sysctl.conf
     sysctl -p
     ```
 
-10. 执行以下命令配置用户的 limits.conf 文件。
+    > **警告：**
+    >
+    > 不建议在内存小于 16 GiB 的系统上调大 `vm.min_free_kbytes` 的值，否则可能导致系统不稳定或启动失败。
 
-    {{< copyable "shell-regular" >}}
+    > **注意：**
+    >
+    > - `vm.min_free_kbytes` 是 Linux 内核的一个参数，用于控制系统预留的最小空闲内存量，单位为 KiB。
+    > - `vm.min_free_kbytes` 的设置会影响内存回收机制。设置得过大，会导致可用内存变少，设置得过小，可能会导致内存的申请速度超过后台的回收速度，进而导致内存回收并引起内存分配延迟。
+    > - 建议将 `vm.min_free_kbytes` 最小设置为 `1048576` KiB（即 1 GiB）。如果[安装了 NUMA](/check-before-deployment.md#安装-numactl-工具)，建议设置为 `NUMA 节点个数 * 1048576` KiB。
+    > - 对于运行 Linux 内核 4.11 或更早版本的系统，建议将 `net.ipv4.tcp_tw_recycle` 设置为 `0`。
+
+10. 执行以下命令配置用户的 limits.conf 文件。
 
     ```bash
     cat << EOF >>/etc/security/limits.conf
-    tidb           soft    nofile          1000000
-    tidb           hard    nofile          1000000
+    tidb           soft    nofile         1000000
+    tidb           hard    nofile         1000000
     tidb           soft    stack          32768
     tidb           hard    stack          32768
+    tidb           soft    core           unlimited
+    tidb           hard    core           unlimited
     EOF
     ```
 
 ## 手动配置 SSH 互信及 sudo 免密码
 
-对于有需求，通过手动配置中控机至目标节点互信的场景，可参考本段。通常推荐使用 TiUP 部署工具会自动配置 SSH 互信及免密登录，可忽略本段内容。
+本节介绍如何手动配置中控机到目标节点的 SSH 互信。如果你使用 TiUP 部署工具，SSH 互信和免密码登录会自动完成配置，可跳过本节。
+
+在配置 SSH 互信时，建议在所有目标节点上创建并使用 `tidb` 用户。一般情况下，系统并不强制要求各节点上的用户相同。但在以下场景中，请注意用户一致性的要求：
+
+- 使用备份恢复工具 (BR)：强烈建议使用同一用户执行所有 BR 和 TiDB 相关操作。
+- 使用 NFS 等网络存储：需要确保该用户在所有节点上的 UID 和 GID 相同。NFS 通过底层 UID 和 GID 来识别文件访问权限，如果各节点的 UID 或 GID 不一致，或者执行 BR 的用户与运行 TiDB 的用户不同（尤其是在没有 `sudo` 权限时），备份或恢复过程中可能会出现权限被拒绝 (Permission Denied) 错误。
 
 1. 以 `root` 用户依次登录到部署目标机器创建 `tidb` 用户并设置登录密码。
 
-    {{< copyable "shell-root" >}}
-
     ```bash
-    useradd tidb && \
+    useradd -m -d /home/tidb tidb
     passwd tidb
     ```
 
 2. 执行以下命令，将 `tidb ALL=(ALL) NOPASSWD: ALL` 添加到文件末尾，即配置好 sudo 免密码。
-
-    {{< copyable "shell-root" >}}
 
     ```bash
     visudo
@@ -629,16 +783,12 @@ sudo systemctl enable ntpd.service
 
 3. 以 `tidb` 用户登录到中控机，执行以下命令。将 `10.0.1.1` 替换成你的部署目标机器 IP，按提示输入部署目标机器 `tidb` 用户密码，执行成功后即创建好 SSH 互信，其他机器同理。新建的 `tidb` 用户下没有 `.ssh` 目录，需要执行生成 rsa 密钥的命令来生成 `.ssh` 目录。如果要在中控机上部署 TiDB 组件，需要为中控机和中控机自身配置互信。
 
-    {{< copyable "shell-regular" >}}
-
     ```bash
     ssh-keygen -t rsa
     ssh-copy-id -i ~/.ssh/id_rsa.pub 10.0.1.1
     ```
 
 4. 以 `tidb` 用户登录中控机，通过 `ssh` 的方式登录目标机器 IP。如果不需要输入密码并登录成功，即表示 SSH 互信配置成功。
-
-    {{< copyable "shell-regular" >}}
 
     ```bash
     ssh 10.0.1.1
@@ -650,8 +800,6 @@ sudo systemctl enable ntpd.service
 
 5. 以 `tidb` 用户登录到部署目标机器后，执行以下命令，不需要输入密码并切换到 `root` 用户，表示 `tidb` 用户 sudo 免密码配置成功。
 
-    {{< copyable "shell-regular" >}}
-
     ```bash
     sudo -su root
     ```
@@ -662,45 +810,41 @@ sudo systemctl enable ntpd.service
 
 ## 安装 numactl 工具
 
-本段主要介绍如果安装 NUMA 工具。在生产环境中，因为硬件机器配置往往高于需求，为了更合理规划资源，会考虑单机多实例部署 TiDB 或者 TiKV。NUMA 绑核工具的使用，主要为了防止 CPU 资源的争抢，引发性能衰退。
+本段主要介绍如何安装 NUMA 工具。在生产环境中，因为硬件机器配置往往高于需求，为了更合理规划资源，会考虑单机多实例部署 TiDB 或者 TiKV。NUMA 绑核工具的使用，主要为了防止 CPU 资源的争抢，引发性能衰退。
 
 > **注意：**
 >
 > - NUMA 绑核是用来隔离 CPU 资源的一种方法，适合高配置物理机环境部署多实例使用。
 > - 通过 `tiup cluster deploy` 完成部署操作，就可以通过 `exec` 命令来进行集群级别管理工作。
 
-1. 登录到目标节点进行安装（以 CentOS Linux release 7.7.1908 (Core) 为例）
+安装 NUMA 工具有两种方法：
 
-    {{< copyable "shell-regular" >}}
+方法 1：登录到目标节点进行安装（以 CentOS Linux release 7.7.1908 (Core) 为例）。
+
+```bash
+sudo yum -y install numactl
+```
+
+方法 2：通过 `tiup cluster exec` 在集群上批量安装 NUMA。
+
+1. 使用 TiUP 安装 TiDB 集群，参考[使用 TiUP 部署 TiDB 集群](/production-deployment-using-tiup.md)完成 `tidb-test` 集群的部署。如果本地已有集群，可跳过这一步。
 
     ```bash
-    sudo yum -y install numactl
+    tiup cluster deploy tidb-test {{{ .tidb-version }}} ./topology.yaml --user root [-p] [-i /home/root/.ssh/gcp_rsa]
     ```
 
-2. 通过 TiUP 的 cluster 执行完 exec 命令来完成批量安装
-
-    {{< copyable "shell-regular" >}}
-
-    ```bash
-    tiup cluster exec --help
-    ```
-
-    ```
-    Run shell command on host in the tidb cluster
-
-    Usage:
-    cluster exec <cluster-name> [flags]
-
-    Flags:
-        --command string   the command run on cluster host (default "ls")
-    -h, --help             help for exec
-        --sudo             use root permissions (default false)
-    ```
-
-    将 tidb-test 集群所有目标主机通过 sudo 权限执行安装命令
-
-    {{< copyable "shell-regular" >}}
+2. 执行 `tiup cluster exec` 命令，以 `sudo` 权限在 `tidb-test` 集群所有目标主机上安装 NUMA。
 
     ```bash
     tiup cluster exec tidb-test --sudo --command "yum -y install numactl"
     ```
+
+    你可以执行 `tiup cluster exec --help` 查看的 `tiup cluster exec` 命令的说明信息。
+
+## 关闭 SELinux
+
+SELinux 必须关闭或设置为 `permissive` 模式。你可以使用 [getenforce(8)](https://linux.die.net/man/8/getenforce) 工具来检查 SELinux 的当前状态。
+
+如果 SELinux 未关闭，请打开 `/etc/selinux/config` 文件，找到以 `SELINUX=` 开头的行，并将其修改为 `SELINUX=disabled`。修改完成后，你需要重启系统，因为从 `enforcing` 或 `permissive` 切换到 `disabled` 模式只有在重启后才会生效。
+
+在某些系统（如 Ubuntu）上，`/etc/selinux/config` 文件可能不存在，且 getenforce 工具可能未安装。在这种情况下，可以跳过此检查步骤。

@@ -1,6 +1,7 @@
 ---
 title: TiDB Lightning 断点续传
 aliases: ['/docs-cn/dev/tidb-lightning/tidb-lightning-checkpoints/','/docs-cn/dev/reference/tools/tidb-lightning/checkpoints/']
+summary: TiDB Lightning 提供了“断点续传”的功能，即使 `tidb-lightning` 崩溃，在重启时仍然接着之前的进度继续工作。断点续传可通过配置启用，存储方式包括本地文件和 MySQL 数据库。在出现不可恢复的错误时，可以使用 `tidb-lightning-ctl` 工具来控制断点的处理，包括重置断点状态、清除出错状态和移除断点。
 ---
 
 # TiDB Lightning 断点续传
@@ -48,7 +49,7 @@ TiDB Lightning 支持两种存储方式：本地文件或 MySQL 数据库。
 
 * 若 `driver = "file"`，断点会存放在一个本地文件，其路径由 `dsn` 参数指定。由于断点会频繁更新，建议将这个文件放到写入次数不受限制的盘上，例如 RAM disk。
 
-* 若 `driver = "mysql"`，断点可以存放在任何兼容 MySQL 5.7 或以上的数据库中，包括 MariaDB 和 TiDB。在没有选择的情况下，默认会存在目标数据库里。
+* 若 `driver = "mysql"`，断点可以存放在任何兼容 MySQL 的数据库中，包括 MariaDB 和 TiDB。在没有选择的情况下，默认会存在目标数据库里。
 
 目标数据库在导入期间会有大量的操作，若使用目标数据库来存储断点会加重其负担，甚至有可能造成通信超时丢失数据。因此，**强烈建议另外部署一台兼容 MySQL 的临时数据库服务器**。此数据库也可以安装在 `tidb-lightning` 的主机上。导入完毕后可以删除。
 

@@ -1,81 +1,49 @@
 ---
 title: TiDB 工具下载
 aliases: ['/docs-cn/dev/download-ecosystem-tools/','/docs-cn/dev/reference/tools/download/']
+summary: 本文介绍如何下载 TiDB 工具包。TiDB 工具包包含常用工具如 Dumpling、TiDB Lightning、BR 等。如果部署环境能访问互联网，可直接通过 TiUP 命令一键部署所需的 TiDB 工具。操作系统需为 Linux，架构为 amd64 或 arm64。下载步骤包括访问 TiDB 社区版页面，找到 TiDB-community-toolkit 软件包并点击立即下载。注意，点击立即下载后默认下载当前 TiDB 的最新发布版本。根据要使用的工具选择安装对应的离线包。
 ---
 
 # TiDB 工具下载
 
-本页面汇总了 TiDB 周边工具官方维护版本的下载链接。
+本文介绍如何下载 TiDB 工具包。关于 TiDB 工具包的内容，请查看 [TiDB 离线包](/binary-package.md)。
 
-## TiDB Binlog
+TiDB 工具包中包含了一些常用的 TiDB 工具，例如数据导出工具 Dumpling、数据导入工具 TiDB Lightning、备份恢复工具 BR、数据一致性检查工具 sync-diff-inspector。
 
-如需下载最新版本的 [TiDB Binlog](/tidb-binlog/tidb-binlog-overview.md)，直接下载 TiDB 安装包即可，因为 TiDB Binlog 包含在 TiDB 安装包中。
+> **建议：**
+>
+> 对于 TiDB v8.5.6 及以上版本，包括 sync-diff-inspector 在内的大多数工具都可以直接通过 TiUP 使用。如果你的部署环境能访问互联网，无需单独下载 TiDB 工具包，可以直接通过使用 [TiUP 命令一键部署](/tiup/tiup-component-management.md)所需的 TiDB 工具。
 
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/tidb-{version}-linux-amd64.tar.gz` (TiDB Binlog) | Linux | amd64 | `https://download.pingcap.org/tidb-{version}-linux-amd64.sha256` |
+## 环境要求
+
+- 操作系统：Linux
+- 架构：amd64 或 arm64
+
+## 下载步骤
+
+1. 访问[软件下载中心](https://pingkai.cn/download#tidb-community)页面。
+2. 选择你所需的 TiDB 版本和架构，选择 **TiDB 工具集 TiDB-community-toolkit**，确认隐私政策，然后点击**立即下载**。
 
 > **注意：**
 >
-> 下载链接中的 `{version}` 为 TiDB 的版本号。例如，`v5.2.2` 版本的下载链接为 `https://download.pingcap.org/tidb-v5.2.2-linux-amd64.tar.gz`。
+> - 如需在 Kubernetes 上部署运维 TiDB，无需下载 TiDB-community-toolkit 软件包，请参考[离线安装 TiDB Operator](https://docs.pingcap.com/zh/tidb-in-kubernetes/stable/deploy-tidb-operator#离线安装-tidb-operator)。
+> - 如需使用 [PD Control](/pd-control.md) 工具 `pd-ctl`，请下载 **TiDB-community-server 软件包**。
 
-## TiDB Lightning
+## TiDB 工具包说明
 
-使用下表中的链接下载 [TiDB Lightning](/tidb-lightning/tidb-lightning-overview.md)：
+在 TiDB 工具包中，你可以依据要使用的工具，选择安装对应的离线包。
 
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.tar.gz` | Linux | amd64 | `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.sha256` |
-
-> **注意：**
->
-> 下载链接中的 `{version}` 为 TiDB Lightning 的版本号。例如，`v5.2.2` 版本的下载链接为 `https://download.pingcap.org/tidb-toolkit-v5.2.2-linux-amd64.tar.gz`。
-
-## 备份和恢复 (BR) 工具
-
-使用下表中的链接下载 [BR 工具](/br/backup-and-restore-tool.md)：
-
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.tar.gz` | Linux | amd64 | `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.sha256` |
+| 工具  | 离线包名称  |
+|:------|:----------|
+| [TiUP](/tiup/tiup-overview.md)  | `tiup-linux-{arch}.tar.gz` <br/>`tiup-{tiup-version}-linux-{arch}.tar.gz` <br/>`dm-{tiup-version}-linux-{arch}.tar.gz` <br/> `server-{version}-linux-{arch}.tar.gz` |
+| [Dumpling](/dumpling-overview.md)  | `dumpling-{version}-linux-{arch}.tar.gz`  |
+| [TiDB Lightning](/tidb-lightning/tidb-lightning-overview.md)  | `tidb-lightning-ctl` <br/>`tidb-lightning-{version}-linux-{arch}.tar.gz`  |
+| [TiDB DM (Data Migration)](/dm/dm-overview.md)  | `dm-worker-{version}-linux-{arch}.tar.gz` <br/>`dm-master-{version}-linux-{arch}.tar.gz` <br/>`dmctl-{version}-linux-{arch}.tar.gz`  |
+| [TiCDC](/ticdc/ticdc-overview.md)  | `cdc-{version}-linux-{arch}.tar.gz`  |
+| [Backup & Restore (BR)](/br/backup-and-restore-overview.md)  | `br-{version}-linux-{arch}.tar.gz`  |
+| [sync-diff-inspector](/sync-diff-inspector/sync-diff-inspector-overview.md)  | TiDB v8.5.6 及以上版本：`tiflow-{version}-linux-{arch}.tar.gz`<br/>TiDB v8.5.6 之前的版本：`sync_diff_inspector` |
+| [PD Recover](/pd-recover.md)  | `pd-recover-{version}-linux-{arch}.tar.gz` |
 
 > **注意：**
 >
-> 下载链接中的 `{version}` 为 BR 的版本号。例如，`v5.2.2` 版本的下载链接为 `https://download.pingcap.org/tidb-toolkit-v5.2.2-linux-amd64.tar.gz`。
-
-## TiDB DM (Data Migration)
-
-使用下表中的链接下载 [DM](https://docs.pingcap.com/zh/tidb-data-migration/stable/overview)：
-
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/dm-{version}-linux-amd64.tar.gz` | Linux | amd64 | `https://download.pingcap.org/dm-{version}-linux-amd64.sha256` |
-
-> **注意：**
->
-> 下载链接中的 `{version}` 为 DM 的版本号。例如，`v2.0.6` 版本的下载链接为 `https://download.pingcap.org/dm-v2.0.6-linux-amd64.tar.gz`。可以通过 [DM Release](https://github.com/pingcap/dm/releases) 查看当前已发布版本。
-
-## Dumpling
-
-使用下表中的链接下载 [Dumpling](/dumpling-overview.md):
-
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.tar.gz` | Linux | amd64 | `https://download.pingcap.org/tidb-toolkit-{version}-linux-amd64.sha256` |
-
-> **注意：**
->
-> - 下载链接中的 `{version}` 为 Dumpling 的版本号。例如，`v5.2.2` 版本的下载链接为 `https://download.pingcap.org/tidb-toolkit-v5.2.2-linux-amd64.tar.gz`。可以通过 [Dumpling Release](https://github.com/pingcap/dumpling/releases) 查看当前已发布版本。
-> - Dumpling 已支持 arm64 linux，将下载链接中的 amd64 替换为 arm64，即表示 arm64 版 Dumpling。
-
-## sync-diff-inspector
-
-使用下表中的链接下载 [sync-diff-inspector](/sync-diff-inspector/sync-diff-inspector-overview.md):
-
-| 安装包 | 操作系统 | 架构 | SHA256 校验和 |
-|:---|:---|:---|:---|
-| [tidb-enterprise-tools-nightly-linux-amd64.tar.gz](https://download.pingcap.org/tidb-enterprise-tools-nightly-linux-amd64.tar.gz) | Linux | amd64 | [tidb-enterprise-tools-nightly-linux-amd64.sha256](https://download.pingcap.org/tidb-enterprise-tools-nightly-linux-amd64.sha256) |
-
-## TiCDC
-
-[TiCDC](/ticdc/ticdc-overview.md) 的下载方式见 [TiCDC 安装部署文档](/ticdc/deploy-ticdc.md)。
+> 以上离线包名称中，`{version}` 取决于离线包中工具的版本号，`{arch}` 取决于离线包对应的架构（amd64 或 arm64）。

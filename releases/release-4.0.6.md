@@ -1,5 +1,6 @@
 ---
 title: TiDB 4.0.6 Release Notes
+summary: TiDB 4.0.6 发布日期为 2020 年 9 月 15 日。新功能包括 TiFlash 中支持在广播 Join 中使用外连接，TiDB Dashboard 添加了多个页面和功能。TiCDC 从 v4.0.6 起成为正式功能。优化提升方面，TiDB 提升了分区表的写性能，支持调整 Union 执行算子的并发度等。Bug 修复方面，TiDB 修复了多个查询结果不正确的问题。TiKV 修复了统计信息估算错误的问题等。PD 修复了 store limit 的单位问题等。TiFlash 修复了多个启动失败和异常问题。Tools 方面也有多个问题得到解决。
 ---
 
 # TiDB 4.0.6 Release Notes
@@ -25,8 +26,6 @@ TiDB 版本：4.0.6
 + Tools
 
     + TiCDC（自 v4.0.6 起，TiCDC 成为**正式功能**，可用于生产环境）
-
-        - 支持输出 `maxwell` 格式的数据 [#869](https://github.com/pingcap/ticdc/pull/869)
 
 ## 优化提升
 
@@ -75,8 +74,8 @@ TiDB 版本：4.0.6
 
     + TiCDC
 
-        - 在初始化阶段跳过 resolved lock [#910](https://github.com/pingcap/ticdc/pull/910)
-        - 减少写 PD 的频率 [#937](https://github.com/pingcap/ticdc/pull/937)
+        - 在初始化阶段跳过 resolved lock [#910](https://github.com/pingcap/tiflow/pull/910)
+        - 减少写 PD 的频率 [#937](https://github.com/pingcap/tiflow/pull/937)
 
     + Backup & Restore (BR)
 
@@ -177,10 +176,10 @@ TiDB 版本：4.0.6
 
     + TiCDC
 
-        - 解决某些场景下内存泄露的问题 [#942](https://github.com/pingcap/ticdc/pull/942)
-        - 解决 Kafka sink 可能会出现的异常退出的问题 [#912](https://github.com/pingcap/ticdc/pull/912)
-        - 解决 CRTs 小于 Resolved Ts 而异常退出的问题 [#927](https://github.com/pingcap/ticdc/pull/927)
-        - 解决同步任务可能卡在 MySQL 上的问题 [#936](https://github.com/pingcap/ticdc/pull/936)
+        - 解决某些场景下内存泄露的问题 [#942](https://github.com/pingcap/tiflow/pull/942)
+        - 解决 Kafka sink 可能会出现的异常退出的问题 [#912](https://github.com/pingcap/tiflow/pull/912)
+        - 解决 CRTs 小于 Resolved Ts 而异常退出的问题 [#927](https://github.com/pingcap/tiflow/pull/927)
+        - 解决同步任务可能卡在 MySQL 上的问题 [#936](https://github.com/pingcap/tiflow/pull/936)
         - 修复 TiCDC 不合理的 Resolved Ts 超时等待 [#8573](https://github.com/tikv/tikv/pull/8573)
 
     + Backup & Restore (BR)

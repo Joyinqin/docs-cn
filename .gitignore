@@ -4,9 +4,12 @@
 
 # IntelliJ project files
 .idea/
+.vscode/
 *.iml
+uml/
 out
 gen
 .DS_Store
 
 /node_modules/
+yarn.lock

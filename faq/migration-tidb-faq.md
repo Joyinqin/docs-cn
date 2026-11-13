@@ -10,11 +10,10 @@ aliases: ['/docs-cn/dev/faq/migration-tidb-faq/']
 
 如果要查看迁移相关工具的常见问题，请参考以下链接：
 
-- [Backup & Restore 常见问题](/br/backup-and-restore-faq.md)
-- [TiDB Binlog 常见问题](/tidb-binlog/tidb-binlog-faq.md)
+- [备份与恢复常见问题](/faq/backup-and-restore-faq.md)
 - [TiDB Lightning 常见问题](/tidb-lightning/tidb-lightning-faq.md)
-- [Data Migration 常见问题](https://docs.pingcap.com/zh/tidb-data-migration/stable/faq)
-- [TiCDC 常见问题和故障处理](/ticdc/troubleshoot-ticdc.md)
+- [Data Migration 常见问题](/dm/dm-faq.md)
+- [TiCDC 常见问题](/ticdc/ticdc-faq.md)
 
 ## 全量数据导出导入
 
@@ -29,7 +28,7 @@ TiDB 支持绝大多数 MySQL 语法，一般不需要修改代码。
 + 在出现重试、EOF 错误的服务器端节点执行以下命令：
 
     {{< copyable "shell-regular" >}}
-    
+
     ```shell
     iperf3 -s
     ```
@@ -69,7 +68,7 @@ iperf Done.
 
 如果输出显示网络带宽较低、带宽波动大，各组件日志中就可能出现大量重试、EOF 错误。此时你需要咨询网络服务供应商以提升网络质量。
 
-如果输出的各指标良好，请尝试更新各组件版本。如果更新后仍无法解决问题，请移步 [AskTUG 论坛](https://asktug.com/)寻求帮助。
+如果输出的各指标良好，请尝试更新各组件版本。如果更新后仍无法解决问题，请移步 [AskTUG 论坛](https://pingkai.cn/tidbcommunity/forum/)寻求帮助。
 
 ### 不小心把 MySQL 的 user 表导入到 TiDB 了，或者忘记密码，无法登录，如何处理？
 
@@ -82,9 +81,9 @@ iperf Done.
 - 参考 [MySQL 使用 mysqldump 导出某个表的部分数据](https://blog.csdn.net/xin_yu_xin/article/details/7574662)，使用 mysqldump 加 where 条件导出。
 - 使用 MySQL client 将 select 的结果输出到一个文件。
 
-### 如何从 DB2、Oracle 数据库迁移到 TiDB？
+### 如何从 Db2、Oracle 数据库迁移到 TiDB？
 
-DB2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
+Db2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
 
 - 使用 Oracle 官方迁移工具，如 OGG、Gateway（透明网关）、CDC (Change Data Capture)。
 - 自研数据导出导入程序实现。
@@ -93,7 +92,7 @@ DB2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
 
 目前看来 OGG 最为合适。
 
-### 用 Sqoop 批量写入 TiDB 数据，虽然配置了 `--batch` 选项，但还是会遇到 `java.sql.BatchUpdateExecption:statement count 5001 exceeds the transaction limitation` 的错误，该如何解决？
+### 用 Sqoop 批量写入 TiDB 数据，虽然配置了 `--batch` 选项，但还是会遇到 `java.sql.BatchUpdateException:statement count 5001 exceeds the transaction limitation` 的错误，该如何解决？
 
 - 在 Sqoop 中，`--batch` 是指每个批次提交 100 条 statement，但是默认每个 statement 包含 100 条 SQL 语句，所以此时 100 * 100 = 10000 条 SQL 语句，超出了 TiDB 的事务限制 5000 条，可以增加选项 `-Dsqoop.export.records.per.statement=10` 来解决这个问题，完整的用法如下：
 
@@ -110,7 +109,7 @@ DB2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
         --batch
     ```
 
-- 也可以选择增大 tidb 的单个事物语句数量限制，不过这个会导致内存上涨。
+- 也可以选择增大 TiDB 单个事务允许的语句条数限制，不过这样会占用更多内存。
 
 ### Dumpling 导出时引发上游数据库 OOM 或报错“磁盘空间不足”
 
@@ -119,7 +118,7 @@ DB2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
 - 数据库主键分布不均匀，例如启用了 [SHARD_ROW_ID_BITS](/shard-row-id-bits.md)
 - 上游数据库为 TiDB，导出表是分区表
 
-在上述情况下，Dumpling 划分导出子范围时，会划分出过大的子范围，从而向上游发送结果过大的查询。请联系 [AskTUG 社区专家](https://asktug.com/)获取实验版本的 Dumpling。
+在上述情况下，Dumpling 划分导出子范围时，会划分出过大的子范围，从而向上游发送结果过大的查询。请联系 [AskTUG 社区专家](https://pingkai.cn/tidbcommunity/forum/)获取实验版本的 Dumpling。
 
 ### TiDB 有像 Oracle 那样的 Flashback Query 功能么，DDL 支持么？
 
@@ -135,7 +134,7 @@ DB2、Oracle 到 TiDB 数据迁移（增量+全量），通常做法有：
 
 ### 如何快速迁移业务流量？
 
-我们建议通过 [TiDB Data Migration](https://docs.pingcap.com/zh/tidb-data-migration/v2.0/overview) 进行 MySQL -> TiDB 的业务数据的迁移；业务读写可以按照需求分阶段通过修改网络配置进行流量迁移，建议 DB 上层部署一个稳定的网络 LB（HAproxy、LVS、F5、DNS 等），这样直接修改网络配置就能实现无缝流量迁移。
+我们建议通过 [TiDB Data Migration](/dm/dm-overview.md) 进行 MySQL -> TiDB 的业务数据的迁移；业务读写可以按照需求分阶段通过修改网络配置进行流量迁移，建议 DB 上层部署一个稳定的网络 LB（HAproxy、LVS、F5、DNS 等），这样直接修改网络配置就能实现无缝流量迁移。
 
 ### TiDB 总读写流量有限制吗？
 
@@ -143,7 +142,7 @@ TiDB 读流量可以通过增加 TiDB server 进行扩展，总读容量无限�
 
 ### Transaction too large 是什么原因，怎么解决？
 
-TiDB 限制了单条 KV entry 不超过 6MB，可以修改配置文件中的 [`txn-entry-size-limit`](/tidb-configuration-file.md#txn-entry-size-limit-从-v50-版本开始引入) 配置项进行调整，最大可以修改到 120MB。
+TiDB 限制了单条 KV entry 不超过 6MB，可以修改配置文件中的 [`txn-entry-size-limit`](/tidb-configuration-file.md#txn-entry-size-limit-从-v4010-和-v500-版本开始引入) 配置项进行调整，最大可以修改到 120MB。
 
 分布式事务要做两阶段提交，而且底层还需要做 Raft 复制。如果一个事务非常大，提交过程会非常慢，事务写冲突概率会增加，而且事务失败后回滚会导致不必要的性能开销。所以我们设置了 key-value entry 的总大小默认不超过 100MB。如果业务需要使用大事务，可以修改配置文件中的 `txn-total-size-limit` 配置项进行调整，最大可以修改到 10G。实际的大小限制还受机器的物理内存影响。
 
@@ -163,15 +162,15 @@ DELETE，TRUNCATE 和 DROP 都不会立即释放空间。对于 TRUNCATE 和 DRO
 
 ### TiDB 是否支持 replace into 语法？
 
-支持，但是 load data 不支持 replace into 语法。
+支持。
 
-### 数据删除后查询速度为何会变慢？
+### 删除数据后查询速度为何会变慢？
 
-大量删除数据后，会有很多无用的 key 存在，影响查询效率。目前正在开发 Region Merge 功能，完善之后可以解决这个问题，具体看参考[最佳实践](https://pingcap.com/blog-cn/tidb-best-practice/)中的删除数据部分。
+删除大量数据后，会有很多无用的 key 存在，影响查询效率。要解决该问题，可以尝试开启 [Region Merge](/best-practices/massive-regions-best-practices.md#方法五开启-region-merge) 功能，具体可参考[最佳实践](https://pingkai.cn/tidbcommunity/blog/7f818fc0)中的删除数据部分。
 
 ### 数据删除最高效最快的方式？
 
-在删除大量数据的时候，建议使用 `Delete from t where xx limit 5000`（xx 建议在满足业务过滤逻辑下，尽量加上强过滤索引列或者直接使用主键选定范围，如 `id >= 5000*n+m and id <= 5000*(n+1)+m` 这样的方案，通过循环来删除，用 `Affected Rows == 0` 作为循环结束条件，这样避免遇到事务大小的限制。如果一次删除的数据量非常大，这种循环的方式会越来越慢，因为每次删除都是从前向后遍历，前面的删除之后，短时间内会残留不少删除标记（后续会被 GC 掉），影响后面的 Delete 语句。如果有可能，建议把 Where 条件细化。可以参考官网[最佳实践](https://pingcap.com/blog-cn/tidb-best-practice/)。
+在删除大量数据的时候，建议使用 `Delete from t where xx limit 5000`（xx 建议在满足业务过滤逻辑下，尽量加上强过滤索引列或者直接使用主键选定范围，如 `id >= 5000*n+m and id <= 5000*(n+1)+m` 这样的方案，通过循环来删除，用 `Affected Rows == 0` 作为循环结束条件，这样避免遇到事务大小的限制。如果一次删除的数据量非常大，这种循环的方式会越来越慢，因为每次删除都是从前向后遍历，前面的删除之后，短时间内会残留不少删除标记（后续会被 GC 掉），影响后面的 Delete 语句。如果有可能，建议把 Where 条件细化。可以参考官网[最佳实践](https://pingkai.cn/tidbcommunity/blog/7f818fc0)。
 
 ### TiDB 如何提高数据加载速度？
 

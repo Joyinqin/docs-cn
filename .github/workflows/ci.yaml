@@ -1,0 +1,85 @@
+name: ci
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  duplicated-file-names:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+      - name: Verify duplicated file names
+        run: ./scripts/verify-duplicated-file-name.sh
+      - name: Verify safer defaults
+        run: python3 scripts/test-safer-defaults.py
+
+  security-regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Run security regression tests
+        run: |
+          python3 -m venv "$RUNNER_TEMP/security-tests"
+          "$RUNNER_TEMP/security-tests/bin/python" -m pip install --no-deps --only-binary=:all: PyYAML==6.0.3
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-dispatch-workflow.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-doc-review-workflow.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-flush-version-workflow.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-install-scripts.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-media-workflow.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-privileged-workflow-actors.py
+          "$RUNNER_TEMP/security-tests/bin/python" scripts/test-workflow-dependencies.py
+
+  internal-links-files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts --include=dev
+      - name: Verify internal links (full repo) - files
+        run: ./scripts/verify-links.sh
+
+  internal-links-anchors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts --include=dev
+      - name: Verify internal links (full repo) - anchors
+        run: ./scripts/verify-link-anchors.sh
+
+  internal-links-toc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "18"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts --include=dev
+      - name: Verify internal links (full repo) - TOC membership
+        run: node ./scripts/verify-internal-links-in-toc.js

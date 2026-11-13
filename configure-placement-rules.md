@@ -8,9 +8,9 @@ aliases: ['/docs-cn/dev/configure-placement-rules/','/docs-cn/dev/how-to/configu
 
 > **注意：**
 >
-> 在配合使用 TiFlash 场景下，Placement Rules 功能进行过大量测试，可以在生产环境中使用。除配合使用 TiFlash 的场景外，单独开启 Placement Rules 没有经过大量测试，因此，不建议在生产环境单独开启该功能。
+> 本文介绍如何手动在 Placement Driver (PD) 中设置 Placement Rules。推荐使用 [Placement Rules in SQL](/placement-rules-in-sql.md)，让你更方便地设置表和分区的放置。
 
-Placement Rules 是 PD 在 4.0 版本引入的试验特性，它是一套副本规则系统，用于指导 PD 针对不同类型的数据生成对应的调度。通过组合不同的调度规则，用户可以精细地控制任何一段连续数据的副本数量、存放位置、主机类型、是否参与 Raft 投票、是否可以担任 Raft leader 等属性。
+Placement Rules 是 PD 在 4.0 版本引入的一套副本规则系统，用于指导 PD 针对不同类型的数据生成对应的调度。通过组合不同的调度规则，用户可以精细地控制任何一段连续数据的副本数量、存放位置、主机类型、是否参与 Raft 投票、是否可以担任 Raft leader 等属性。
 
 Placement Rules 特性在 TiDB v5.0 及以上的版本中默认开启。如需关闭 Placement Rules 特性，请参考[关闭 Placement Rules](#关闭-placement-rules-特性)。
 
@@ -38,7 +38,7 @@ Placement Rules 示意图如下所示：
 | `Override`        | `true`/`false`                     | 是否覆盖 index 的更小 Rule（限分组内） |
 | `StartKey`        | `string`，十六进制编码                | 适用 Range 起始 key                 |
 | `EndKey`          | `string`，十六进制编码                | 适用 Range 终止 key                 |
-| `Role`            | `string` | 副本角色，包括 leader/follower/learner                           |
+| `Role`            | `string` | 副本角色，包括 voter/leader/follower/learner                           |
 | `Count`           | `int`，正整数                     | 副本数量                            |
 | `LabelConstraint` | `[]Constraint`                    | 用于按 label 筛选节点               |
 | `LocationLabels`  | `[]string`                        | 用于物理隔离                        |
@@ -82,7 +82,7 @@ Placement Rules 特性在 TiDB v5.0 及以上的版本中默认开启。如需�
 enable-placement-rules = true
 ```
 
-这样，PD 在初始化成功后会开启这个特性，并根据 `max-replicas` 及 `location-labels` 配置生成对应的规则：
+这样，PD 在初始化成功后会开启这个特性，并根据 [`max-replicas`](/pd-configuration-file.md#max-replicas)、[`location-labels`](/pd-configuration-file.md#location-labels) 及 [`isolation-level`](/pd-configuration-file.md#isolation-level) 配置生成对应的规则：
 
 {{< copyable "" >}}
 
@@ -107,11 +107,12 @@ enable-placement-rules = true
 pd-ctl config placement-rules enable
 ```
 
-PD 同样将根据系统的 `max-replicas` 及 `location-labels` 生成默认的规则。
+PD 同样将根据系统的 `max-replicas`、`location-labels` 及 `isolation-level` 生成默认的规则。
 
 > **注意：**
 >
-> 开启 Placement Rules 后，原先的 `max-replicas` 及 `location-labels` 配置项将不再生效。如果需要调整副本策略，应当使用 Placement Rules 相关接口。
+> - 开启 Placement Rules 且存在多条 rule 的情况下，原先的 `max-replicas`、`location-labels` 及 `isolation-level` 配置项将不再生效。如果需要调整副本策略，应当使用 Placement Rules 相关接口。
+> - 开启 Placement Rules 且只存在一条默认的 rule 的情况下，当改变 `max-replicas`、`location-labels` 或 `isolation-level` 配置项时，系统会自动更新这条默认的 rule。
 
 ### 关闭 Placement Rules 特性
 
@@ -125,7 +126,7 @@ pd-ctl config placement-rules disable
 
 > **注意：**
 >
-> 关闭 Placement Rules 后，PD 将使用原先的 `max-replicas` 及 `location-labels` 配置。在 Placement Rules 开启期间对 Rule 的修改不会导致这两项配置的同步更新。此外，设置好的所有 Rule 都会保留在系统中，会在下次开启 Placement Rules 时被使用。
+> 关闭 Placement Rules 后，PD 将使用原先的 `max-replicas`、`location-labels` 及 `isolation-level` 配置。在 Placement Rules 开启期间对 Rule 的修改不会导致这三项配置的同步更新。此外，设置好的所有 Rule 都会保留在系统中，会在下次开启 Placement Rules 时被使用。
 
 ### 使用 pd-ctl 设置规则
 
@@ -192,7 +193,9 @@ cat > rules.json <<EOF
     }
 ]
 EOF
-pd-ctl config placement save --in=rules.json
+
+» ./pd-ctl -u 127.0.0.1:2379 config placement-rules save --in=rules.json
+Success!
 ```
 
 以上操作会将 rule1、rule2 两条规则写入 PD，如果系统中已经存在 GroupID+ID 相同的规则，则会覆盖该规则。
@@ -210,7 +213,9 @@ cat > rules.json <<EOF
     }
 ]
 EOF
-pd-ctl config placement save --in=rules.json
+
+» ./pd-ctl -u 127.0.0.1:2379 config placement-rules save --in=rules.json
+Success!
 ```
 
 ### 使用 pd-ctl 设置规则分组
@@ -279,12 +284,12 @@ pd-ctl config placement-rules rule-bundle get pd
 }
 ```
 
-`rule-bundle get` 子命令中可以添加 `-out` 参数来将输出写入文件，方便后续修改保存。
+`rule-bundle get` 子命令中可以添加 `--out` 参数来将输出写入文件，方便后续修改保存。
 
 {{< copyable "shell-regular" >}}
 
 ```bash
-pd-ctl config placement-rules rule-bundle get pd -out="group.json"
+pd-ctl config placement-rules rule-bundle get pd --out="group.json"
 ```
 
 修改完成后，使用 `rule-bundle set` 子命令将文件中的配置保存至 PD 服务器。与前面介绍的 `save` 不同，此命令会替换服务器端该分组内的所有规则。
@@ -292,7 +297,7 @@ pd-ctl config placement-rules rule-bundle get pd -out="group.json"
 {{< copyable "shell-regular" >}}
 
 ```bash
-pd-ctl config placement-rules rule-bundle set pd -in="group.json"
+pd-ctl config placement-rules rule-bundle set pd --in="group.json"
 ```
 
 ### 使用 pd-ctl 查看和修改所有配置
@@ -361,7 +366,7 @@ table ttt ranges: (NOTE: key range might be changed after DDL)
   "start_key": "6d00000000000000f8",
   "end_key": "6e00000000000000f8",
   "role": "voter",
-  "count": "5",
+  "count": 5,
   "location_labels": ["zone", "rack", "host"]
 }
 ```
@@ -436,7 +441,7 @@ table ttt ranges: (NOTE: key range might be changed after DDL)
 
 ### 场景四：为某张表在有高性能磁盘的北京节点添加 2 个 Follower 副本
 
-这个例子展示了比较复杂的 `label_constraints` 配置，下面的例子限定了副本放置在 bj1 或 bj2 机房，且磁盘类型不能为 hdd。
+这个例子展示了比较复杂的 `label_constraints` 配置，下面的例子限定了副本放置在 bj1 或 bj2 机房，且磁盘类型为 `nvme`。
 
 {{< copyable "" >}}
 
@@ -450,13 +455,13 @@ table ttt ranges: (NOTE: key range might be changed after DDL)
   "count": 2,
   "label_constraints": [
     {"key": "zone", "op": "in", "values": ["bj1", "bj2"]},
-    {"key": "disk", "op": "notIn", "values": ["hdd"]}
+    {"key": "disk", "op": "in", "values": ["nvme"]}
   ],
   "location_labels": ["host"]
 }
 ```
 
-### 场景五：将某张表迁移至 TiFlash 集群
+### 场景五：将某张表迁移至 SSD 节点
 
 与场景三不同，这个场景不是要在原有配置的基础上增加新副本，而是要强制覆盖一段数据的其它配置，因此需要通过配置规则分组来指定一个足够大的 index 以及设置 override 来覆盖原有规则。
 
@@ -466,16 +471,16 @@ table ttt ranges: (NOTE: key range might be changed after DDL)
 
 ```json
 {
-  "group_id": "tiflash-override",
-  "id": "learner-replica-table-ttt",
+  "group_id": "ssd-override",
+  "id": "ssd-table-45",
   "start_key": "7480000000000000ff2d5f720000000000fa",
   "end_key": "7480000000000000ff2e00000000000000f8",
   "role": "voter",
   "count": 3,
   "label_constraints": [
-    {"key": "engine", "op": "in", "values": ["tiflash"]}
+    {"key": "disk", "op": "in", "values": ["ssd"]}
   ],
-  "location_labels": ["host"]
+  "location_labels": ["rack", "host"]
 }
 ```
 
@@ -485,7 +490,7 @@ table ttt ranges: (NOTE: key range might be changed after DDL)
 
 ```json
 {
-  "id": "tiflash-override",
+  "id": "ssd-override",
   "index": 1024,
   "override": true,
 }

@@ -1,5 +1,6 @@
 ---
 title: TiDB 5.2 Release Notes
+summary: TiDB 5.2 版本于 2021 年 8 月 27 日发布。该版本新增了许多功能和改进，包括支持基于部分函数创建表达式索引、提升优化器的估算准确度、锁视图成为 GA 特性等。此外，还修复了多个 bug，提升了稳定性和性能。
 ---
 
 # TiDB 5.2 Release Notes
@@ -20,13 +21,13 @@ TiDB 版本：5.2.0
 - 新增 TiFlash I/O 限流功能，提升 TiFlash 读写稳定性。
 - 为 TiKV 引入新的流控机制代替之前的 RocksDB write stall 流控机制，提升 TiKV 流控稳定性。
 - 简化 Data Migration (DM) 工具运维，降低运维管理的成本。
-- TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes 以及 On-Premises 环境下提供更友好的运维方式。(实验特性)
+- TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes 以及本地部署环境下提供更友好的运维方式。(实验特性)
 
 ## 兼容性更改
 
 > **注意：**
 >
-> 当从一个早期的 TiDB 版本升级到 TiDB 5.2 时，如需了解所有中间版本对应的兼容性更改说明，请查看对应版本的 [Release Note](/releases/release-notes.md)。
+> 当从一个早期的 TiDB 版本升级到 TiDB 5.2 时，如需了解所有中间版本对应的兼容性更改说明，请查看对应版本的 [Release Note](/releases/_index.md)。
 
 ### 系统变量
 
@@ -45,7 +46,7 @@ TiDB 版本：5.2.0
 | :---------- | :----------- | :----------- | :----------- |
 | TiDB 配置文件 | [`pessimistic-txn.deadlock-history-collect-retryable`](/tidb-configuration-file.md#deadlock-history-collect-retryable) | 新增 | 控制 [`INFORMATION\_SCHEMA.DEADLOCKS`](/information-schema/information-schema-deadlocks.md) 表中是否收集可重试的死锁错误信息。 |
 | TiDB 配置文件 | [`security.auto-tls`](/tidb-configuration-file.md#auto-tls) | 新增 | 控制 TiDB 启动时是否自动生成 TLS 证书，默认值为 `false`。 |
-| TiDB 配置文件 | [`stmt-summary.max-stmt-count`](/tidb-configuration-file.md#max-stmt-count) | 修改 | 表示 statement summary tables 中保存的 SQL 种类的最大数量。默认值从 `200` 修改为 `3000`。 |
+| TiDB 配置文件 | `stmt-summary.max-stmt-count` | 修改 | 表示 statement summary tables 中保存的 SQL 种类的最大数量。默认值从 `200` 修改为 `3000`。 | 
 | TiDB 配置文件 | `experimental.allow-expression-index`  | 废弃 | 废弃 TiDB 配置文件中`allow-expression-index` 配置项 |
 | TiKV 配置文件 | [`raftstore.cmd-batch`](/tikv-configuration-file.md#cmd-batch)  | 新增 | 对请求进行攒批的控制开关，开启后可显著提升写入性能。默认值为 `true`。 |
 | TiKV 配置文件 | [`raftstore.inspect-interval`](/tikv-configuration-file.md#inspect-interval)  | 新增 | TiKV 每隔一段时间会检测 Raftstore 组件的延迟情况，该配置项设置检测的时间间隔。当检测的延迟超过该时间，该检测会被记为超时。默认值为 `500ms`。|
@@ -53,7 +54,7 @@ TiDB 版本：5.2.0
 | TiKV 配置文件 | [`server.raft-client-queue-size`](/tikv-configuration-file.md#raft-client-queue-size)  | 新增 | 指定 TiKV 中发送 Raft 消息的缓冲区大小。默认值为 8192。 |
 | TiKV 配置文件 | [`storage.flow-control.enable`](/tikv-configuration-file.md#enable)  | 新增 | 表示是否开启 TiKV 流量控制机制。默认值为 `true`。 |
 | TiKV 配置文件 | [`storage.flow-control.memtables-threshold`](/tikv-configuration-file.md#memtables-threshold)  | 新增 | 当 KvDB 的 memtable 的个数达到该阈值时，流控机制开始工作。默认值为 5。 |
-| TiKV 配置文件 | [`storage.flow-control.l0-files-threshold`](/tikv-configuration-file.md#l0-files-threshold)  | 新增 | 当 KvDB 的 L0 文件个数达到该阈值时，流控机制开始工作。默认值为 9。 | 
+| TiKV 配置文件 | [`storage.flow-control.l0-files-threshold`](/tikv-configuration-file.md#l0-files-threshold)  | 新增 | 当 KvDB 的 L0 文件个数达到该阈值时，流控机制开始工作。默认值为 9。 |
 | TiKV 配置文件 | [`storage.flow-control.soft-pending-compaction-bytes-limit`](/tikv-configuration-file.md#soft-pending-compaction-bytes-limit)  | 新增 | 当 KvDB 的 pending compaction bytes 达到该阈值时，流控机制开始拒绝部分写入请求并报错。默认值为 "192GB"。 |
 | TiKV 配置文件 | [`storage.flow-control.hard-pending-compaction-bytes-limit`](/tikv-configuration-file.md#hard-pending-compaction-bytes-limit)  | 新增 | 当 KvDB 的 pending compaction bytes 达到该阈值时，流控机制开始拒绝所有写入请求并报错。默认值为 "1024GB"。 |
 
@@ -61,7 +62,7 @@ TiDB 版本：5.2.0
 
 - 升级前，请检查系统变量 [`tidb_evolve_plan_baselines`](/system-variables.md#tidb_evolve_plan_baselines-从-v40-版本开始引入) 的值是否为 `ON`。如果为 `ON`，需要将其改成 `OFF`，否则会导致升级失败。
 - v4.0 集群升级到 v5.2 集群后，[`tidb_multi_statement_mode`](/system-variables.md#tidb_multi_statement_mode-从-v4011-版本开始引入) 变量的默认值由 `WARN` 变为 `OFF`。
-- 升级前，请检查 TiDB 配置项 [`feedback-probability`](/tidb-configuration-file.md#feedback-probability) 的值。如果不为 0，升级后会触发 "panic in the recoverable goroutine" 报错，但不影响升级。
+- 升级前，请检查 TiDB 配置项 [`feedback-probability`](https://docs-archive.pingcap.com/zh/tidb/v5.2/tidb-configuration-file#feedback-probability) 的值。如果不为 0，升级后会触发 "panic in the recoverable goroutine" 报错，但不影响升级。
 - 兼容 MySQL 5.7 的 noop 变量 `innodb_default_row_format`，配置此变量无实际效果 [#23541](https://github.com/pingcap/tidb/issues/23541)。
 
 - 从 TiDB 5.2 起，为了提高系统安全性，建议（但不要求）对来自客户端的连接进行传输层加密，TiDB 提供 Auto TLS 功能在 TiDB 服务器端自动配置并开启加密。要使用 Auto TLS 功能，请在 TiDB 升级前将 TiDB 配置文件中的 [`security.auto-tls`](/tidb-configuration-file.md#auto-tls) 设置为 `true`。
@@ -115,7 +116,7 @@ TiDB 版本：5.2.0
     - 对于 Lock View 所属的各张表中的 SQL Digest 列， v5.2 额外增加了一列显示对应的归一化的 SQL 语句文本，无需手动查询 SQL Digest 对应的语句。
     - 增加了 `TIDB_DECODE_SQL_DIGESTS` 函数用于在集群中查询一组 SQL Digest 所对应的 SQL 语句的归一化形式（即去除格式和参数后的形式），简化了查询某一事务历史执行过的语句的操作
     - 在 `DATA_LOCK_WAITS` 和 `DEADLOCKS` 系统表中，增加一列显示 key 中解出的表名、row id、索引值等信息，简化了定位 key 所属的表、解读 key 的内容等信息的操作。
-    - 支持在 `DEADLOCKS` 表中收集可重试的死锁错误的信息，以便于排查因可重试的死锁引发的问题。默认不收集，可通过配置选项 `pessimistic-txn.deadlock-history-collect-retryable` 启用 。
+    - 支持在 `DEADLOCKS` 表中收集可重试的死锁错误的信息，以便于排查因可重试的死锁引发的问题。默认不收集，可通过配置选项 `pessimistic-txn.deadlock-history-collect-retryable` 启用。
     - `TIDB_TRX` 系统表支持区分正在执行查询的事务和闲置中的事务，即将原来的 `Normal` 状态拆分成 `Running` 和 `Idle` 状态。
 
     用户文档：
@@ -161,9 +162,9 @@ TiDB 版本：5.2.0
 
 ### TiDB 数据共享订阅
 
-TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes 以及 On-Premises 环境下提供更友好的运维方式。(实验特性）
+TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes 以及本地部署环境下提供更友好的运维方式。(实验特性）
 
-[#2411](https://github.com/pingcap/ticdc/issues/2411)
+[#2411](https://github.com/pingcap/tiflow/issues/2411)
 
 ### 部署及运维
 
@@ -175,9 +176,9 @@ TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes �
 
     + TiCDC
 
-        - 新增专为 TiDB 设计的比基于 JSON 的开放协议更紧凑的二进制 MQ 格式 [#1621](https://github.com/pingcap/ticdc/pull/1621)
-        - 移除对 file sorter 的支持 [#2114](https://github.com/pingcap/ticdc/pull/2114)
-        - 支持日志轮替配置 [#2182](https://github.com/pingcap/ticdc/pull/2182)
+        - 新增专为 TiDB 设计的比基于 JSON 的开放协议更紧凑的二进制 MQ 格式 [#1621](https://github.com/pingcap/tiflow/pull/1621)
+        - 移除对 file sorter 的支持 [#2114](https://github.com/pingcap/tiflow/pull/2114)
+        - 支持日志轮替配置 [#2182](https://github.com/pingcap/tiflow/pull/2182)
 
     + TiDB Lightning
 
@@ -228,11 +229,11 @@ TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes �
 + Tools
 
     + TiCDC
-        - 为 kv client 增量扫添加并发限制 [#1899](https://github.com/pingcap/ticdc/pull/1899)
-        - 始终在 TiCDC 内部拉取 old value [#2271](https://github.com/pingcap/ticdc/pull/2271)
-        - 当遇到不可恢复的 DML 错误，TiCDC 快速失败并退出 [#1928](https://github.com/pingcap/ticdc/pull/1928)
-        - 在 Region 初始化后不立即执行 resolve lock [#2235](https://github.com/pingcap/ticdc/pull/2235)
-        - 优化 workerpool 以降低在高并发情况下 goroutine 的数量 [#2201](https://github.com/pingcap/ticdc/pull/2201)
+        - 为 kv client 增量扫添加并发限制 [#1899](https://github.com/pingcap/tiflow/pull/1899)
+        - 始终在 TiCDC 内部拉取 old value [#2271](https://github.com/pingcap/tiflow/pull/2271)
+        - 当遇到不可恢复的 DML 错误，TiCDC 快速失败并退出 [#1928](https://github.com/pingcap/tiflow/pull/1928)
+        - 在 Region 初始化后不立即执行 resolve lock [#2235](https://github.com/pingcap/tiflow/pull/2235)
+        - 优化 workerpool 以降低在高并发情况下 goroutine 的数量 [#2201](https://github.com/pingcap/tiflow/pull/2201)
 
     + Dumpling
         - 通过 `tidb_rowid` 对 TiDB v3.x 的表进行数据划分以节省 TiDB 的内存 [#301](https://github.com/pingcap/dumpling/pull/301)
@@ -289,15 +290,15 @@ TiCDC 支持 HTTP 协议 OpenAPI 对 TiCDC 任务进行管理，在 Kubernetes �
 
     + TiCDC
 
-        - 修复 TiCDC owner 在刷新 checkpoint 时异常退出的问题 [#1902](https://github.com/pingcap/ticdc/issues/1902)
-        - 修复 changefeed 创建成功后立即失败的问题 [#2113](https://github.com/pingcap/ticdc/issues/2113)
-        - 修复不合法格式的 rules filter 导致 changefeed 失败的问题 [#1625](https://github.com/pingcap/ticdc/issues/1625)
-        - 修复 TiCDC Owner 崩溃时潜在的 DDL 丢失问题 [#1260](https://github.com/pingcap/ticdc/issues/1260)
-        - 修复 CLI 在默认的 sort-engine 选项上与 4.0.x 集群的兼容性问题 [#2373](https://github.com/pingcap/ticdc/issues/2373)
-        - 修复 TiCDC 遇到 `ErrSchemaStorageTableMiss` 错误时可能导致 changefeed 被意外重置的问题 [#2422](https://github.com/pingcap/ticdc/issues/2422)
-        - 修复 TiCDC 遇到 `ErrGCTTLExceeded` 错误时 changefeed 不能被 remove 的问题 [#2391](https://github.com/pingcap/ticdc/issues/2391)
-        - 修复 TiCDC 同步大表到 cdclog 失败的问题 [#1259](https://github.com/pingcap/ticdc/issues/1259) [#2424](https://github.com/pingcap/ticdc/issues/2424)
-        - 修复 TiCDC 在重新调度 table 时多个 processors 可能向同一个 table 写数据的问题 [#2230](https://github.com/pingcap/ticdc/issues/2230)
+        - 修复 TiCDC owner 在刷新 checkpoint 时异常退出的问题 [#1902](https://github.com/pingcap/tiflow/issues/1902)
+        - 修复 changefeed 创建成功后立即失败的问题 [#2113](https://github.com/pingcap/tiflow/issues/2113)
+        - 修复不合法格式的 rules filter 导致 changefeed 失败的问题 [#1625](https://github.com/pingcap/tiflow/issues/1625)
+        - 修复 TiCDC Owner 崩溃时潜在的 DDL 丢失问题 [#1260](https://github.com/pingcap/tiflow/issues/1260)
+        - 修复 CLI 在默认的 sort-engine 选项上与 4.0.x 集群的兼容性问题 [#2373](https://github.com/pingcap/tiflow/issues/2373)
+        - 修复 TiCDC 遇到 `ErrSchemaStorageTableMiss` 错误时可能导致 changefeed 被意外重置的问题 [#2422](https://github.com/pingcap/tiflow/issues/2422)
+        - 修复 TiCDC 遇到 `ErrGCTTLExceeded` 错误时 changefeed 不能被 remove 的问题 [#2391](https://github.com/pingcap/tiflow/issues/2391)
+        - 修复 TiCDC 同步大表到 cdclog 失败的问题 [#1259](https://github.com/pingcap/tiflow/issues/1259) [#2424](https://github.com/pingcap/tiflow/issues/2424)
+        - 修复 TiCDC 在重新调度 table 时多个 processors 可能向同一个 table 写数据的问题 [#2230](https://github.com/pingcap/tiflow/issues/2230)
 
     + Backup & Restore (BR)
 

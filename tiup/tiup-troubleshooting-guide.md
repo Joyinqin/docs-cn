@@ -1,6 +1,7 @@
 ---
 title: TiUP 故障排查
 aliases: ['/docs-cn/dev/tiup/tiup-troubleshooting-guide/']
+summary: TiUP 故障排查包括命令故障排查和集群组件故障排查。命令故障包括强制刷新组件列表和版本信息，网络中断导致的下载问题，以及 checksum 错误。集群组件故障包括 SSH 私钥问题，升级中断和缺失组件文件的解决方法。可通过 Github Issues 或 AskTUG 求助。
 ---
 
 # TiUP 故障排查
@@ -8,7 +9,7 @@ aliases: ['/docs-cn/dev/tiup/tiup-troubleshooting-guide/']
 本文介绍 TiUP 使用过程中一些常见的故障及排查方式，如果本文不包含你目前遇到的问题，可以通过以下方式求助：
 
 1. [Github Issues](https://github.com/pingcap/tiup/issues) 新建一个 Issue。
-2. 在 [AskTUG](https://asktug.com/) 提交你的问题。
+2. 在 [AskTUG](https://pingkai.cn/tidbcommunity/forum/) 提交你的问题。
 
 ## 1. TiUP 命令故障排查
 

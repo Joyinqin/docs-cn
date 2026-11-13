@@ -1,14 +1,14 @@
 ---
 title: TiDB 集群监控 API
 aliases: ['/docs-cn/dev/tidb-monitoring-api/']
+summary: TiDB 提供状态接口和 Metrics 接口来监控集群状态。状态接口可获取 TiDB Server 的运行状态和存储信息，PD 的状态接口可查看整个 TiKV 集群的详细信息。Metrics 接口用于监控整个集群的状态和性能。部署 Prometheus 和 Grafana 后，配置 Grafana 即可使用 Metrics 接口。
 ---
 
 # TiDB 集群监控 API
 
-TiDB 提供了以下两种接口来监控集群状态：
+TiDB 提供了以下几种接口来监控集群状态：
 
-- [状态接口](#运行状态)：通过 HTTP 接口对外汇报组件的信息。
-- [存储信息](#存储信息)：通过 HTTP 接口对外汇报表的存储信息。
+- [状态接口](#使用状态接口)：通过 HTTP 接口对外汇报组件的信息。通过状态接口，你可获取当前 TiDB Server 的[运行状态](#运行状态)以及表的[存储信息](#存储信息)。
 - [Metrics 接口](#使用-metrics-接口)：使用 Prometheus 记录组件中各种操作的详细信息，使用 Grafana 进行可视化展示。
 
 ## 使用状态接口
@@ -33,7 +33,7 @@ curl http://127.0.0.1:10080/status
 ```
 {
     connections: 0,  # 当前 TiDB Server 上的客户端连接数
-    version: "5.7.25-TiDB-v4.0.0-rc-141-g7267747ae",  # TiDB 版本号
+    version: "8.0.11-TiDB-v8.5.0",  # TiDB 版本号
     git_hash: "7267747ae0ec624dffc3fdedb00f1ed36e10284b"  # TiDB 当前代码的 Git Hash
 }
 ```
@@ -50,13 +50,13 @@ curl http://127.0.0.1:10080/schema_storage/mysql/stats_histograms
 
 ```
 {
-    "table_schema": "mysql", 
-    "table_name": "stats_histograms", 
-    "table_rows": 0, 
-    "avg_row_length": 0, 
-    "data_length": 0, 
-    "max_data_length": 0, 
-    "index_length": 0, 
+    "table_schema": "mysql",
+    "table_name": "stats_histograms",
+    "table_rows": 0,
+    "avg_row_length": 0,
+    "data_length": 0,
+    "max_data_length": 0,
+    "index_length": 0,
     "data_free": 0
 }
 ```
@@ -68,13 +68,13 @@ curl http://127.0.0.1:10080/schema_storage/test
 ```
 [
     {
-        "table_schema": "test", 
-        "table_name": "test", 
-        "table_rows": 0, 
-        "avg_row_length": 0, 
-        "data_length": 0, 
-        "max_data_length": 0, 
-        "index_length": 0, 
+        "table_schema": "test",
+        "table_name": "test",
+        "table_rows": 0,
+        "avg_row_length": 0,
+        "data_length": 0,
+        "max_data_length": 0,
+        "index_length": 0,
         "data_free": 0
     }
 ]
@@ -84,7 +84,7 @@ curl http://127.0.0.1:10080/schema_storage/test
 
 - PD API 地址：`http://${host}:${port}/pd/api/v1/${api_name}`
 - 默认端口：2379
-- 各类 `api_name` 详细信息：参见 [PD API Doc](https://download.pingcap.com/pd-api-doc.html)
+- 各类 `api_name` 详细信息：参见 [PD API Doc](https://docs-download.pingcap.com/api/pd-api/pd-api-doc.html)
 
 通过该接口可以获取当前所有 TiKV 节点的状态以及负载均衡信息。下面以一个单节点的 TiKV 集群为例，说明用户需要了解的信息：
 

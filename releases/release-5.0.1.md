@@ -1,5 +1,6 @@
 ---
 title: TiDB 5.0.1 Release Notes
+summary: TiDB 5.0.1 发布日期为 2021 年 4 月 24 日。此版本包含兼容性更改、改进提升、Bug 修复等内容。兼容性更改包括 TiDB 配置文件的默认值改变。改进提升方面，TiDB 支持 `VITESS_HASH()` 函数，TiKV 使用 `zstd` 压缩 Region Snapshot，PD 调整 Region 分数公式等。Bug 修复方面，TiDB 修复了多个查询结果可能错误的问题，TiKV 修复了多个导致问题的 Bug。Tools 方面也有多个 Bug 修复。
 ---
 
 # TiDB 5.0.1 Release Notes
@@ -12,12 +13,12 @@ TiDB 版本：5.0.1
 
 + TiDB 配置文件
 
-    - [`committer-concurrency`](/tidb-configuration-file.md#committer-concurrency) 配置项的默认值由 16 改成 128。
+    - `committer-concurrency` 配置项的默认值由 16 改成 128。
 
 ## 改进提升
 
 + TiDB
-    
+
     - 支持 `VITESS_HASH()` 函数 [#23915](https://github.com/pingcap/tidb/pull/23915)
 
 + TiKV
@@ -51,7 +52,7 @@ TiDB 版本：5.0.1
     - 修复某些情况下 `IN` 语句的执行结果可能错误的问题 [#24023](https://github.com/pingcap/tidb/pull/24023)
     - 修复某些字符串函数的返回结果错误的问题 [#23879](https://github.com/pingcap/tidb/pull/23879)
     - 执行 `REPLACE` 语句需要用户同时拥有 `INSERT` 和 `DELETE` 权限 [#23939](https://github.com/pingcap/tidb/pull/23939)
-    - 修复点查时出现的的性能回退 [#24070](https://github.com/pingcap/tidb/pull/24070)
+    - 修复点查时出现的性能回退 [#24070](https://github.com/pingcap/tidb/pull/24070)
     - 修复因错误比较二进制与字节而导致的 `TableDual` 计划错误的问题 [#23918](https://github.com/pingcap/tidb/pull/23918)
 
 + TiKV
@@ -90,9 +91,9 @@ TiDB 版本：5.0.1
 
     + TiCDC
 
-        - 修复 Unified Sorter 中的并发问题并过滤无用的错误消息 [#1678](https://github.com/pingcap/ticdc/pull/1678)
-        - 修复同步到 MinIO 时，重复创建目录会导致同步中断的问题 [#1672](https://github.com/pingcap/ticdc/pull/1672)
-        - 默认开启会话变量 `explicit_defaults_for_timestamp`，使得下游 MySQL 5.7 和上游 TiDB 的行为保持一致 [#1659](https://github.com/pingcap/ticdc/pull/1659)
-        - 修复错误地处理 `io.EOF` 可能导致同步中断的问题 [#1648](https://github.com/pingcap/ticdc/pull/1648)
-        - 修正 TiCDC 面板中的 TiKV CDC endpoint CPU 统计信息 [#1645](https://github.com/pingcap/ticdc/pull/1645)
-        - 增加 `defaultBufferChanSize` 来避免某些情况下同步阻塞的问题 [#1632](https://github.com/pingcap/ticdc/pull/1632)
+        - 修复 Unified Sorter 中的并发问题并过滤无用的错误消息 [#1678](https://github.com/pingcap/tiflow/pull/1678)
+        - 修复同步到 MinIO 时，重复创建目录会导致同步中断的问题 [#1672](https://github.com/pingcap/tiflow/pull/1672)
+        - 默认开启会话变量 `explicit_defaults_for_timestamp`，使得下游 MySQL 5.7 和上游 TiDB 的行为保持一致 [#1659](https://github.com/pingcap/tiflow/pull/1659)
+        - 修复错误地处理 `io.EOF` 可能导致同步中断的问题 [#1648](https://github.com/pingcap/tiflow/pull/1648)
+        - 修正 TiCDC 面板中的 TiKV CDC endpoint CPU 统计信息 [#1645](https://github.com/pingcap/tiflow/pull/1645)
+        - 增加 `defaultBufferChanSize` 来避免某些情况下同步阻塞的问题 [#1632](https://github.com/pingcap/tiflow/pull/1632)
